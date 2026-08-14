@@ -380,7 +380,7 @@ export async function connectorHealthCheck() {
   }
 }
 
-// ── Prueba manual — llamada desde el botón de UI ──────────────────────────
+// ── Comprobación manual — llamada desde el botón de UI ───────────────────
 export async function probarConexion() {
   setConnectorBadge('run', 'Conector: probando...');
   const ok = await connectorHealthCheck();
