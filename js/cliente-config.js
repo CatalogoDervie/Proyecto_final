@@ -5,9 +5,9 @@
 // Hasta crear el Firebase exclusivo del Proyecto Final se usan valores deliberadamente inválidos.
 
 export const CLIENT_CONFIG = {
-  clienteId: 'proyecto_final_tig_demo',
+  clienteId: 'clinica_oftalmologica',
   nombreSistema: 'Gestión de Cirugías de Cataratas - Proyecto Final TIG',
-  nombreClinica: 'Grupo Oftalmológico Demo',
+  nombreClinica: 'Clínica Oftalmológica',
   dominioSugerido: '',
   emailTecnico: '',
   sedes: ['Clínica A', 'Clínica B'],
