@@ -151,7 +151,7 @@ export function toast(msg, duration = 2800) {
 function configureIDB() {
   return new Promise(res => {
     if (!window.indexedDB) return res(null);
-    const req = indexedDB.open('cirugias_db', 1);
+    const req = indexedDB.open('pfc_cirugias_db', 1);
     req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
     req.onsuccess = () => res(req.result);
     req.onerror = () => res(null);
