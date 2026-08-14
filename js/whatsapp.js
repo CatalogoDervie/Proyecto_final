@@ -172,19 +172,20 @@ function waRenderTemplate(tpl, r, hora) {
     FECHA_LARGA: formatFechaLarga(WA_GLOBAL_DATE),
     HORA: hora || '',
     OJO: ojo,
-    OJO_TEXTO: waOjoTexto(ojo)
+    OJO_TEXTO: waOjoTexto(ojo),
+    CLINICA: r.CLINICA || src?.clinica || 'Clínica Oftalmológica'
   };
-  return String(tpl || '').replace(/\{\{\s*(PACIENTE|FECHA_LARGA|HORA|OJO|OJO_TEXTO)\s*\}\}/g, (_, k) => String(vars[k] || ''));
+  return String(tpl || '').replace(/\{\{\s*(PACIENTE|FECHA_LARGA|HORA|OJO|OJO_TEXTO|CLINICA)\s*\}\}/g, (_, k) => String(vars[k] || ''));
 }
 
 const WA_CONFIRM_TPL = `Buenas tardes, {{PACIENTE}}.
 
-Desde el *Centro de Ojos Esteves* le confirmamos su cirugía en *Gualeguaychú* para el día *{{FECHA_LARGA}}* a las *{{HORA}}HS* (presentarse 30 minutos antes).
+Desde la *Clínica Oftalmológica* le confirmamos su cirugía en *{{CLINICA}}* para el día *{{FECHA_LARGA}}* a las *{{HORA}}HS* (presentarse 30 minutos antes).
 
 Por favor confirme si puede asistir para enviarle los preparativos y documentación de la cirugía del *ojo {{OJO_TEXTO}}*.`;
 
-const WA_SITE_DOMAIN = 'https://centrodeojos-estevesesteves.com.ar';
-const WA_APP_PUBLIC_URL = `${WA_SITE_DOMAIN}/controldecirugias/`;
+const WA_SITE_DOMAIN = new URL('../', import.meta.url).href.replace(/\/$/, '');
+const WA_APP_PUBLIC_URL = `${WA_SITE_DOMAIN}/`;
 const WA_DOCS_PREP_URL = `${WA_SITE_DOMAIN}/preparacion/`;
 const WA_DOCS_CONSENT_URL = `${WA_SITE_DOMAIN}/consentimiento/`;
 const WA_DOCS_TPL = `Le enviamos los documentos para la cirugía del *ojo {{OJO_TEXTO}}* programada para el *{{FECHA_LARGA}}* a las *{{HORA}}HS*.
@@ -199,8 +200,8 @@ ${WA_DOCS_CONSENT_URL}
 
 Por favor lea con mucha atención la preparación y lleve impreso y firmado el consentimiento el día de la cirugía.
 
-📍 Dirección (Gualeguaychú)
-https://share.google/KQuwuBRJt0ZMQj7KX`;
+📍 Sede
+{{CLINICA}}`;
 
 function waMensajeTurno(r, hora) { return waRenderTemplate(WA_CONFIRM_TPL, r, hora); }
 function waMensajeDocs(r, hora) { return waRenderTemplate(WA_DOCS_TPL, r, hora); }
@@ -415,7 +416,7 @@ export function renderWhatsApp() {
   el.innerHTML = `
     <div class='wa-wrap whatsapp-confirmar'>
       <div class='wa-topline'>
-        <h3 class='wa-title'>WhatsApp — Centro de Ojos Esteves</h3>
+        <h3 class='wa-title'>WhatsApp — Clínica Oftalmológica</h3>
         <button id='waBackMain' class='btn'>← Volver a página principal</button>
       </div>
 
