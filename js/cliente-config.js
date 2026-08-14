@@ -2,7 +2,6 @@
 
 // PROYECTO FINAL TIG — ENTORNO DEMO AISLADO
 // IMPORTANTE: este archivo NO debe apuntar nunca al proyecto Firebase de producción "cirugias-we".
-// Hasta crear el Firebase exclusivo del Proyecto Final se usan valores deliberadamente inválidos.
 
 export const CLIENT_CONFIG = {
   clienteId: 'clinica_oftalmologica',
@@ -17,12 +16,12 @@ export const CLIENT_CONFIG = {
     logoUrl: ''
   },
   firebase: {
-    apiKey: 'DEMO_NO_CONFIGURADO',
-    authDomain: 'proyecto-final-tig-demo.invalid',
-    projectId: 'proyecto-final-tig-demo-pendiente',
-    storageBucket: 'proyecto-final-tig-demo-pendiente.invalid',
-    messagingSenderId: '000000000000',
-    appId: 'demo-no-configurado',
-    measurementId: ''
+    apiKey: 'AIzaSyB93k9Z_A08t6Vy3pTw24u0TBpiT0gxZyA',
+    authDomain: 'proyecto-final-tig.firebaseapp.com',
+    projectId: 'proyecto-final-tig',
+    storageBucket: 'proyecto-final-tig.firebasestorage.app',
+    messagingSenderId: '495638874753',
+    appId: '1:495638874753:web:f7ede2514a3e18ce159b80',
+    measurementId: 'G-HWY7FWS9W4'
   }
 };
