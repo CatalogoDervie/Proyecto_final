@@ -1,5 +1,6 @@
 // firebase.js — Firestore connector seguro — Proyecto Final TIG
 // ENTORNO DEMO AISLADO: este archivo bloquea explícitamente el Firebase real de producción.
+import './pfc-storage.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
 import {
@@ -14,9 +15,10 @@ import { CLIENT_CONFIG } from './cliente-config.js';
 const firebaseConfig = CLIENT_CONFIG.firebase;
 const BLOCKED_PRODUCTION_PROJECT_IDS = new Set(['cirugias-we']);
 const isBlockedProductionProject = BLOCKED_PRODUCTION_PROJECT_IDS.has(String(firebaseConfig?.projectId || '').trim());
+const isStorageIsolated = window.__PFC_STORAGE__?.ready === true;
 
-// IMPORTANTE: GitHub Pages de distintos repos del mismo usuario comparten origen.
-// Por eso la cola local del Proyecto Final usa una clave propia y jamás reutiliza la de Prueba.
+// IMPORTANTE: aplicaciones alojadas bajo el mismo origen pueden compartir localStorage.
+// La capa pfc-storage.js crea un espacio exclusivo para este Proyecto Final.
 const QUEUE_KEY = 'pfc_demo_fsc_write_queue';
 function queueLoad() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } }
 function queueSave(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e) { console.warn('[PFC Queue] no se pudo persistir:', e.message); } }
@@ -26,7 +28,8 @@ function queueAdd(op) {
     const idx = q.findIndex(x => x.type === 'upsert' && String(x.row.id) === String(op.row.id));
     if (idx !== -1) { q[idx] = op; queueSave(q); return; }
   }
-  q.push(op); queueSave(q);
+  q.push(op);
+  queueSave(q);
 }
 
 let readyResolve;
@@ -35,6 +38,9 @@ let app, db, auth, cirugiasRef, _initOk = false;
 
 (async () => {
   try {
+    if (!isStorageIsolated) {
+      throw new Error('BLOQUEO DE SEGURIDAD PFC: no se pudo aislar el almacenamiento local del navegador.');
+    }
     if (isBlockedProductionProject) {
       throw new Error('BLOQUEO DE SEGURIDAD PFC: no se permite conectar al proyecto Firebase de producción cirugias-we.');
     }
