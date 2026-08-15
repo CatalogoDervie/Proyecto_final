@@ -45,7 +45,8 @@ service cloud.firestore {
         && (request.auth.uid == uid || isActiveSuperadmin());
       allow list: if isActiveSuperadmin();
 
-      allow create, delete: if isActiveSuperadmin();
+      allow create: if isActiveSuperadmin() && validUserProfile();
+      allow delete: if isActiveSuperadmin();
       allow update: if validUserProfile()
         && (
           isActiveSuperadmin()
