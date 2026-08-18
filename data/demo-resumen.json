@@ -23,8 +23,8 @@
     "FINALIZADA": 382,
     "PEDIR_LENTE": 12,
     "ESPERANDO_LENTE": 17,
-    "FACTURADA": 104,
-    "FACTURADA_FALTA_OTRO_OJO": 37,
+    "FACTURADA": 119,
+    "FACTURADA_FALTA_OTRO_OJO": 22,
     "LLEGO_LENTE_PROGRAMAR": 12,
     "FECHA_PROGRAMADA": 17,
     "REALIZADA_FALTA_FACTURAR": 10
@@ -39,15 +39,20 @@
     "OI": 286
   },
   "alertas": {
-    "sin_alerta": 541,
-    "red": 15,
-    "yellow": 35
+    "sin_alerta": 556,
+    "red": 10,
+    "yellow": 25
   },
-  "totalAlertas": 50,
-  "porcentajeConAlerta": 8.46,
-  "porcentajeSinAlerta": 91.54,
+  "alertasFaltaSegundoOjo": {
+    "red": 4,
+    "yellow": 12,
+    "sin_alerta": 6
+  },
+  "totalAlertas": 35,
+  "porcentajeConAlerta": 5.92,
+  "porcentajeSinAlerta": 94.08,
   "lentesEspeciales": 68,
-  "totalDiasQuirurgicosMixtos": 104,
+  "totalDiasQuirurgicosMixtos": 109,
   "diasQuirurgicosMixtos": [
     "2026-01-08",
     "2026-01-17",
@@ -120,7 +125,9 @@
     "2026-05-29",
     "2026-06-02",
     "2026-06-06",
+    "2026-06-07",
     "2026-06-08",
+    "2026-06-09",
     "2026-06-10",
     "2026-06-11",
     "2026-06-13",
@@ -139,6 +146,9 @@
     "2026-06-26",
     "2026-06-27",
     "2026-06-28",
+    "2026-07-06",
+    "2026-07-07",
+    "2026-07-10",
     "2026-07-11",
     "2026-07-13",
     "2026-07-14",

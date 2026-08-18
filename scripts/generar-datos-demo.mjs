@@ -234,14 +234,8 @@ function assignPeople(args, pools, rnd) {
       group.type = `primer_ojo_facturado_falta_segundo_${severity}`;
     });
   };
-  const activeYellow = pools.active.filter(descriptor => descriptor.stageDemo.includes('_yellow')).length
-    + secondMixed.filter(descriptor => descriptor.stageDemo.includes('_yellow')).length;
-  const activeRed = pools.active.filter(descriptor => descriptor.stageDemo.includes('_red')).length
-    + secondMixed.filter(descriptor => descriptor.stageDemo.includes('_red')).length;
-  const targetYellow = Math.round(totalEpisodes * 0.06);
-  const targetRed = Math.round(totalEpisodes * 0.025);
-  takeByMonth(monthKey(addDays(args.fechaDemo, -35)), Math.max(1, targetYellow - activeYellow), 'yellow');
-  takeByMonth(monthKey(addDays(args.fechaDemo, -55)), Math.max(1, targetRed - activeRed), 'red');
+  takeByMonth(monthKey(addDays(args.fechaDemo, -35)), 12, 'yellow');
+  takeByMonth(monthKey(addDays(args.fechaDemo, -55)), 4, 'red');
   takeByMonth(monthKey(addDays(args.fechaDemo, -10)), 6, 'normal');
 
   const episodes = [];
@@ -305,6 +299,8 @@ function countBy(rows, fn) { return rows.reduce((acc, row) => (acc[fn(row)] = (a
 function summarize(episodes, groups, plan, args, validation) {
   const states = countBy(episodes, row => workflowState(row, episodes));
   const alerts = countBy(episodes, row => alertSeverity(row, episodes, args.fechaDemo) || 'sin_alerta');
+  const missingSecondEyeRows = episodes.filter(row => workflowState(row, episodes) === 'FACTURADA_FALTA_OTRO_OJO');
+  const missingSecondEyeAlerts = countBy(missingSecondEyeRows, row => alertSeverity(row, episodes, args.fechaDemo) || 'sin_alerta');
   const clinics = countBy(episodes, row => row.clinica);
   const eyes = countBy(episodes, row => row.ojo);
   const billed = episodes.filter(row => row.estadoFac === 'FACTURADA');
@@ -326,7 +322,7 @@ function summarize(episodes, groups, plan, args, validation) {
     facturadasPorMes: Object.fromEntries(plan.map(month => [month.key, billedByMonth[month.key] || 0])),
     estados: states, clinicas: clinics,
     porcentajeClinicaA: Number(((clinics.clinica_a || 0) * 100 / episodes.length).toFixed(2)),
-    ojos: eyes, alertas: alerts, totalAlertas: totalAlerts,
+    ojos: eyes, alertas: alerts, alertasFaltaSegundoOjo: missingSecondEyeAlerts, totalAlertas: totalAlerts,
     porcentajeConAlerta: Number((totalAlerts * 100 / episodes.length).toFixed(2)),
     porcentajeSinAlerta: Number(((alerts.sin_alerta || 0) * 100 / episodes.length).toFixed(2)),
     lentesEspeciales: episodes.filter(row => Number(row.precioEspecial) > 0).length,
@@ -388,10 +384,12 @@ function generate(args) {
   const validation = validateDataset(episodes, groups, pools.plan, args);
   const summary = summarize(episodes, groups, pools.plan, args, validation);
   assert(summary.porcentajeFacturados >= 85 && summary.porcentajeFacturados <= 92, `facturados ${summary.porcentajeFacturados}%`);
-  assert(summary.porcentajeConAlerta >= 8 && summary.porcentajeConAlerta <= 15, `alertas ${summary.porcentajeConAlerta}%`);
+  assert(summary.porcentajeConAlerta >= 4.5 && summary.porcentajeConAlerta <= 10, `alertas ${summary.porcentajeConAlerta}%`);
   assert((summary.alertas.yellow || 0) > (summary.alertas.red || 0), 'debe haber más amarillas que rojas');
-  assert((summary.alertas.yellow || 0) / summary.episodios >= 0.05 && (summary.alertas.yellow || 0) / summary.episodios <= 0.09, 'amarillas fuera de 5–9%');
-  assert((summary.alertas.red || 0) / summary.episodios >= 0.02 && (summary.alertas.red || 0) / summary.episodios <= 0.04, 'rojas fuera de 2–4%');
+  assert((summary.alertas.yellow || 0) / summary.episodios >= 0.03 && (summary.alertas.yellow || 0) / summary.episodios <= 0.09, 'amarillas fuera de 3–9%');
+  assert((summary.alertas.red || 0) / summary.episodios >= 0.01 && (summary.alertas.red || 0) / summary.episodios <= 0.04, 'rojas fuera de 1–4%');
+  assert(summary.alertasFaltaSegundoOjo.yellow === 12, 'debe haber exactamente 12 alertas amarillas por falta de segundo ojo');
+  assert(summary.alertasFaltaSegundoOjo.red === 4, 'debe haber exactamente 4 alertas rojas por falta de segundo ojo');
   assert(summary.porcentajeClinicaA >= 52 && summary.porcentajeClinicaA <= 58, `Clínica A ${summary.porcentajeClinicaA}%`);
   const odShare = (summary.ojos.OD || 0) / summary.episodios;
   assert(odShare >= 0.47 && odShare <= 0.53 && summary.ojos.OD !== summary.ojos.OI, 'OD/OI inválido');
