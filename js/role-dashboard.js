@@ -137,9 +137,6 @@ function renderMedico() {
     <section class="rd-kpis">${metricCard('Programadas',by(WORKFLOW_KEYS.FECHA_PROGRAMADA),'')}${metricCard('Esperando lente',by(WORKFLOW_KEYS.ESPERANDO_LENTE),'')}${metricCard('Lente recibida',by(WORKFLOW_KEYS.LLEGO_LENTE_PROGRAMAR),'')}${metricCard('Realizadas sin facturar',by(WORKFLOW_KEYS.REALIZADA_FALTA_FACTURAR),'warn')}${metricCard(`Facturadas · ${periodLabel()}`,billed,'good')}${metricCard('Demoras críticas',critical,'critical','Excepciones operativas')}</section>
     <div class="rd-grid two">${flowPanel()}${ytdPanel()}</div>${agendaPanel()}<div class="rd-grid history-grid">${historyChart()}</div>`;
 }
-function alertCategory(type) {
-  return SETTINGS_FIELDS.find(([key]) => key === type)?.[1] || type;
-}
 function alertUniverses() {
   const scoped = scopedRows();
   const defs = [
