@@ -10,10 +10,12 @@ node scripts/generar-datos-demo.mjs --fecha-demo 2026-08-17
 
 El comando escribe:
 
-- `data/demo-cirugias.json`: 350 episodios completos.
+- `data/demo-cirugias.json`: episodios sintéticos calculados según la actividad histórica y la fecha demo.
 - `data/demo-resumen.json`: métricas y validaciones.
 
-La semilla predeterminada es fija. Puede cambiarse con `--seed`, y la fecha relativa de la demostración con `--fecha-demo`.
+La semilla predeterminada es fija. Puede cambiarse con `--seed`, y la fecha relativa de la demostración con `--fecha-demo`. Los meses completos generan entre 60 y 80 cirugías facturadas; el mes en curso se prorratea hasta la fecha indicada. La cartera activa y las alertas se recalculan manteniendo una operación mayormente normal.
+
+Con `fecha_demo = 2026-08-17` el resultado validado es de 591 episodios para 390 personas: 523 facturados y 68 activos. Las alertas no se persisten como una etiqueta arbitraria; se derivan de los estados, las fechas y los umbrales configurados.
 
 ## Cargar en Firebase
 
@@ -31,8 +33,10 @@ El cargador se detiene si:
 - detecta `cirugias-we`;
 - el UID no es el UID conocido del superadministrador;
 - el perfil no está activo o no tiene rol `superadmin`;
-- el dataset no contiene exactamente 200 personas y 350 episodios;
-- `/cirugias` contiene documentos ajenos a la base demo.
+- el volumen o los identificadores generados son inconsistentes;
+- `/cirugias` contiene algún documento que no esté marcado explícitamente como sintético.
+
+Al reemplazar una versión anterior, primero se escriben y verifican los nuevos documentos. Solo después se eliminan los documentos sintéticos obsoletos. El script nunca modifica `/usuarios` ni otras colecciones.
 
 No utiliza archivos de cuenta de servicio ni guarda credenciales.
 
