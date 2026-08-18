@@ -27,12 +27,14 @@ export function canEditPatient(clinic) { return clinic ? canEditClinic(clinic) :
 export function canFacturar() { return isAdministrativo() || isSupervisor() || isSuperAdmin(); }
 export function canManageUsers() { return isSuperAdmin(); }
 export function canConfigure() { return isSuperAdmin(); }
+export function canConfigureOperationalAlerts() { return isSupervisor() || isSuperAdmin(); }
 export function canDelete() { return isSuperAdmin(); }
 export function canExport() { return isAdministrativo() || isSupervisor() || isSuperAdmin(); }
 export function canViewAudit() { return isSupervisor() || isSuperAdmin(); }
 export function canViewRowHistory() { return isSupervisor() || isSuperAdmin(); }
 export function canView(tab = '') {
   if (!isActiveUser()) return false;
+  if (tab === 'dashboard') return isMedico() || isSupervisor() || isSuperAdmin();
   if (tab === 'administracion') return canManageUsers();
   if (['tabla','pedirlente','whatsapp','facturar'].includes(tab)) return canFacturar();
   if (['kanban','estadisticas'].includes(tab)) return isSupervisor() || isSuperAdmin();
