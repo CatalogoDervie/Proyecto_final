@@ -84,7 +84,8 @@ async function main() {
   if (!password) fail('definir DEMO_PASSWORD únicamente como variable de entorno');
   const { projectId, apiKey } = parseConfig();
   const dataset = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')).episodes || [];
-  if (dataset.length !== 350) fail('dataset local inválido');
+  if (dataset.length < 500) fail('dataset local inválido');
+  const expectedByClinic = dataset.reduce((acc, row) => (acc[row.clinica] = (acc[row.clinica] || 0) + 1, acc), {});
   const rowA = dataset.find(x => x.clinica === 'clinica_a');
   const rowB = dataset.find(x => x.clinica === 'clinica_b');
   if (!rowA || !rowB) fail('faltan episodios de alguna clínica');
@@ -102,7 +103,7 @@ async function main() {
     operations.push(expect(await getDoc(projectId, user, spec.other.id), false, `${spec.key} no lee otra clínica`));
     const ownQuery = await query(projectId, user, spec.clinic);
     operations.push(expect(ownQuery, true, `${spec.key} consulta propia clínica`));
-    if (queryCount(ownQuery) !== 175) fail(`${spec.key}: debía ver 175 episodios`);
+    if (queryCount(ownQuery) !== expectedByClinic[spec.clinic]) fail(`${spec.key}: cantidad visible de episodios incorrecta`);
     operations.push(expect(await query(projectId, user, spec.forbidden), false, `${spec.key} consulta otra clínica`));
     operations.push(expect(await writeDoc(projectId, user, spec.own.id, spec.own), true, `${spec.key} edita propia clínica`));
     operations.push(expect(await writeDoc(projectId, user, spec.other.id, spec.other), false, `${spec.key} no edita otra clínica`));
@@ -116,7 +117,7 @@ async function main() {
   operations.push(expect(await getDoc(projectId, medico, rowB.id), true, 'medico lee Clínica B'));
   const medicoAll = await query(projectId, medico);
   operations.push(expect(medicoAll, true, 'medico consulta ambas clínicas'));
-  if (queryCount(medicoAll) !== 350) fail('medico debía ver 350 episodios');
+  if (queryCount(medicoAll) !== dataset.length) fail(`medico debía ver ${dataset.length} episodios`);
   operations.push(expect(await writeDoc(projectId, medico, rowA.id, rowA), false, 'medico no modifica operación'));
   operations.push(expect(await listUsers(projectId, medico), false, 'medico no administra usuarios'));
 
@@ -130,7 +131,7 @@ async function main() {
   const superadmin = sessions.superadmin;
   const adminAll = await query(projectId, superadmin);
   operations.push(expect(adminAll, true, 'superadmin consulta ambas clínicas'));
-  if (queryCount(adminAll) !== 350) fail('superadmin debía ver 350 episodios');
+  if (queryCount(adminAll) !== dataset.length) fail(`superadmin debía ver ${dataset.length} episodios`);
   operations.push(expect(await writeDoc(projectId, superadmin, rowA.id, rowA), true, 'superadmin edita Clínica A'));
   operations.push(expect(await writeDoc(projectId, superadmin, rowB.id, rowB), true, 'superadmin edita Clínica B'));
   operations.push(expect(await listUsers(projectId, superadmin), true, 'superadmin administra usuarios'));
