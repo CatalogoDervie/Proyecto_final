@@ -1,0 +1,2 @@
+# Dataset voluminoso reproducible; se genera con scripts/generar-datos-demo.mjs.
+data/demo-cirugias.json

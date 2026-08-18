@@ -2,7 +2,7 @@
 
 'use strict';
 
-import { DB, estado, getDioptria, filtered, WORKFLOW_KEYS } from './state.js';
+import { DB, estado, getDioptria, filtered, WORKFLOW_KEYS, isDemoSynthetic } from './state.js';
 import { save } from './firebase-ui.js';
 import { connectorStartJob, connectorPollJob, renderJobStatus } from './connector.js';
 import { hoyISO, toast, escapeHtml, escapeAttr } from './utils.js';
@@ -512,6 +512,11 @@ function attachEvents() {
 async function ejecutarFacturacionDocs() {
   const rows = selectedFacturarRows();
   if (!rows.length) { toast('Tildá Facturar en al menos un paciente'); return; }
+  if (rows.some(isDemoSynthetic)) {
+    toast('BASE DEMO: conector de facturación bloqueado para pacientes sintéticos');
+    renderJobStatus('facturarJobStatus', 'err', '⛔ Datos sintéticos: no se envían a conectores reales.');
+    return;
+  }
   const base_dir = (document.getElementById('facturarBaseDir')?.value || '').trim();
   const output_dir = (document.getElementById('facturarOutputDir')?.value || '').trim();
   if (!base_dir || !output_dir) { toast('Completá carpeta local y carpeta de salida'); return; }

@@ -1,0 +1,211 @@
+{
+  "projectId": "proyecto-final-tig",
+  "fecha": "2026-08-18T02:23:22.077Z",
+  "authentication": [
+    {
+      "usuario": "superadmin",
+      "email": "superadmin@clinicaoftalmologica.test",
+      "uid": "oyVbmO40aqSIK9pCXihU4cOL2bS2",
+      "ok": true
+    },
+    {
+      "usuario": "admin_a",
+      "email": "clinicaa@clinicaoftalmologica.test",
+      "uid": "bLEnN56iRxg2CmmCAXbcyx0suew1",
+      "ok": true
+    },
+    {
+      "usuario": "admin_b",
+      "email": "clinicab@clinicaoftalmologica.test",
+      "uid": "8rmnsYQkvYQCFEaxcCiVBRFpZMA2",
+      "ok": true
+    },
+    {
+      "usuario": "medico",
+      "email": "medico@clinicaoftalmologica.test",
+      "uid": "hO8Uq3YIwlcy16EDV90TESGf9AI3",
+      "ok": true
+    },
+    {
+      "usuario": "supervisor",
+      "email": "supervisor@clinicaoftalmologica.test",
+      "uid": "oNkykUEAZuciiqCh9Am1U40lmJg2",
+      "ok": true
+    }
+  ],
+  "operaciones": [
+    {
+      "operacion": "admin_a lee propia clínica",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "admin_a no lee otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_a consulta propia clínica",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "admin_a consulta otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_a edita propia clínica",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "admin_a no edita otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_a no cambia clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_a no crea en otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_a no administra usuarios",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_b lee propia clínica",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "admin_b no lee otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_b consulta propia clínica",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "admin_b consulta otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_b edita propia clínica",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "admin_b no edita otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_b no cambia clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_b no crea en otra clínica",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "admin_b no administra usuarios",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "medico lee Clínica A",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "medico lee Clínica B",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "medico consulta ambas clínicas",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "medico no modifica operación",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "medico no administra usuarios",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "supervisor lee Clínica A",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "supervisor lee Clínica B",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "supervisor edita Clínica A",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "supervisor edita Clínica B",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "supervisor no administra usuarios",
+      "resultado": "BLOQUEADA",
+      "http": 403
+    },
+    {
+      "operacion": "superadmin consulta ambas clínicas",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "superadmin edita Clínica A",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "superadmin edita Clínica B",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "superadmin administra usuarios",
+      "resultado": "PERMITIDA",
+      "http": 200
+    },
+    {
+      "operacion": "EPI-INTENTO-DENEGADO-ADMIN_A no fue creado",
+      "resultado": "BLOQUEADA",
+      "http": 404
+    },
+    {
+      "operacion": "EPI-INTENTO-DENEGADO-ADMIN_B no fue creado",
+      "resultado": "BLOQUEADA",
+      "http": 404
+    }
+  ],
+  "permitidas": 17,
+  "bloqueadas": 17,
+  "resultado": "OK"
+}

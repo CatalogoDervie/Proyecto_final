@@ -10,7 +10,7 @@ import {
   SETTINGS, ALERT_SILENCES, findRow, normalizeId,
   estado, alertas, secondEyeMissing, isFacturadoCompleto, getDioptria,
   silenciarAlerta, reactivarAlerta, backupDiario, normalizarData, validarFila, filtered,
-  isSecondEyeBlockedByBilling
+  isSecondEyeBlockedByBilling, isDemoSynthetic
 } from './state.js';
 import {
   render, renderTabla, renderStats, renderAlerts, refreshSidePanel,
@@ -1065,6 +1065,10 @@ async function descargarScriptLentess() {
   const checkedIds = new Set(Array.from(document.querySelectorAll('#lentessBody .lentess-row:checked')).map(chk => String(chk.dataset.id || '')));
   const rows = (LENTESS_CTX.validRows || []).filter(r => checkedIds.has(String(r.sourceId)));
   if (!rows.length) { toast('Seleccioná al menos un paciente apto para Lentess'); return; }
+  if (rows.some(r => isDemoSynthetic(findRow(r.sourceId)))) {
+    toast('BASE DEMO: envío a PAMI/Lentess bloqueado para pacientes sintéticos');
+    return;
+  }
   const cfg = lentessGuardarCreds();
   if (!cfg.user || !cfg.pass) { toast('Completar usuario y contraseña PAMI'); return; }
   const fechaSol = String(document.getElementById('lentessFechaSol')?.value || '').trim() || hoyISO();

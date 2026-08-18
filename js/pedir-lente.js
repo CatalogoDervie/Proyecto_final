@@ -1,6 +1,6 @@
 'use strict';
 
-import { estado, getDioptria, filtered, WORKFLOW_KEYS, stateKey, isSecondEyeBlockedByBilling } from './state.js';
+import { estado, getDioptria, filtered, WORKFLOW_KEYS, stateKey, isSecondEyeBlockedByBilling, isDemoSynthetic } from './state.js';
 import { escapeHtml, escapeAttr, toast, cleanDigits } from './utils.js';
 import { connectorStartJob, connectorPollJob, renderJobStatus } from './connector.js';
 import { loadLentessEntregas, entregaForClinica } from './admision-config.js';
@@ -79,6 +79,10 @@ function openLentessModulo(rows, screen) {
   modal.querySelector('#lentessModuloRun').onclick = async () => {
     const selected = selectedModalRows(rows);
     if (!selected.length) { toast('Tildá al menos un paciente válido para enviar a Lentess'); return; }
+    if (selected.some(isDemoSynthetic)) {
+      toast('BASE DEMO: envío a PAMI/Lentess bloqueado para pacientes sintéticos');
+      return;
+    }
     const user = String(modal.querySelector('#lentessUser')?.value || '').trim();
     const pass = String(modal.querySelector('#lentessPass')?.value || '').trim();
     if (!user || !pass) { toast('Completá usuario y contraseña PAMI'); return; }
