@@ -135,6 +135,8 @@ service cloud.firestore {
         && request.resource.data.lens_delay_warn_days > 0
         && request.resource.data.lens_delay_crit_days <= 365
         && request.resource.data.lens_delay_warn_days < request.resource.data.lens_delay_crit_days
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy is string
         && request.resource.data.updatedBy == request.auth.uid;
     }
 
