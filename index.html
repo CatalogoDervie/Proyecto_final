@@ -60,6 +60,7 @@
 
         <div class="workspace-console">
           <div class="tabrow-wrap workspace-panel workspace-nav-panel"><div class="tabrow-label">Módulos</div><div class="tabrow" id="tabrow">
+            <button class="tablink" data-tab="dashboard">Resumen</button>
             <button class="tablink active" data-tab="tabla">Operación</button>
             <button class="tablink" data-tab="pedirlente">Circuito de lentes</button>
             <button class="tablink" data-tab="kanban">Tableros</button>
@@ -143,6 +144,7 @@
 
     <div class="alerts-panel" id="alertsPanel"><div class="alerts-head"><span id="alertsTitle">Alertas</span><button id="btnCloseAlerts" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:13px">✕</button></div><div class="alerts-filters"><button class="af-btn active" id="af-TODAS" data-af="TODAS">Todas</button><button class="af-btn" id="af-criticas" data-af="criticas">Críticas</button></div><div id="alertsList"></div></div>
 
+    <div id="roleDashboardView" style="display:none"></div>
     <div id="tabView"><div class="tablewrap"><div class="table-scroll"><table id="mainTable"><colgroup id="mainColgroup"></colgroup><thead id="mainThead"></thead><tbody id="tbody"></tbody></table></div></div></div>
     <div id="pedirLenteView" style="display:none;margin:10px 0 20px"></div><div id="kanView" style="display:none"></div><div id="calView" style="display:none;margin:10px 0 20px"></div><div id="statsView" style="display:none;margin:10px 0 20px"></div><div id="facturarView" style="display:none;margin:10px 0 20px"></div><div id="waView" style="display:none;margin:10px 0 20px"></div><div id="adminView" style="display:none;margin:10px 0 20px"></div>
   </div>
