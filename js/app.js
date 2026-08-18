@@ -7,7 +7,7 @@ import {
   DB, setDB, selId, setSelId, sortCol, setSortCol, sortDir, setSortDir,
   currentTab, setCurrentTab, quickFilter, setQuickFilter as _setQuickFilter,
   hideFinalizadasSinAccion, setHideFinalizadasSinAccion,
-  SETTINGS, ALERT_SILENCES, findRow, normalizeId,
+  ALERT_SILENCES, findRow, normalizeId,
   estado, alertas, secondEyeMissing, isFacturadoCompleto, getDioptria,
   silenciarAlerta, reactivarAlerta, backupDiario, normalizarData, validarFila, filtered,
   isSecondEyeBlockedByBilling, isDemoSynthetic
@@ -23,7 +23,7 @@ import {
 } from './firebase-ui.js';
 import { probarConexion, connectorStartJob, connectorPollJob, renderJobStatus } from './connector.js';
 import { abrirModalRecetas, cerrarModalRecetas, generarRecetasDesdeModal } from './recetas.js';
-import { canEditPatient, canEditClinic, canViewClinic, canFacturar, canManageUsers, canExport, canViewRowHistory, canDelete, canView, defaultClinic, isAdministrativo, currentClinic, clinicLabel } from './authz.js';
+import { canEditPatient, canEditClinic, canViewClinic, canFacturar, canManageUsers, canExport, canViewRowHistory, canDelete, canView, canConfigureOperationalAlerts, defaultClinic, isAdministrativo, isMedico, isSupervisor, currentClinic, clinicLabel } from './authz.js';
 import { openRowHistoryModal, closeRowHistoryModal } from './audit.js';
 import { loadAdmisionConfig, ensureAdmisionForPatient, loadLentessEntregas, entregaForClinica } from './admision-config.js';
 
@@ -114,13 +114,14 @@ function setTab(tab, el) {
   if (tab === 'kanban') resetModuleFilters(false);
   setCurrentTab(tab);
   document.body.classList.toggle('mode-operacion', tab === 'tabla');
+  document.body.classList.toggle('mode-dashboard', tab === 'dashboard');
   document.querySelectorAll('.tablink').forEach(b => b.classList.remove('active'));
   if (el) el.classList.add('active');
-  ['tabView', 'pedirLenteView', 'kanView', 'calView', 'statsView', 'facturarView', 'waView', 'adminView'].forEach(id => {
+  ['roleDashboardView', 'tabView', 'pedirLenteView', 'kanView', 'calView', 'statsView', 'facturarView', 'waView', 'adminView'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  const tabMap = { tabla: 'tabView', pedirlente: 'pedirLenteView', kanban: 'kanView', calendario: 'calView', estadisticas: 'statsView', facturar: 'facturarView', whatsapp: 'waView', administracion: 'adminView' };
+  const tabMap = { dashboard: 'roleDashboardView', tabla: 'tabView', pedirlente: 'pedirLenteView', kanban: 'kanView', calendario: 'calView', estadisticas: 'statsView', facturar: 'facturarView', whatsapp: 'waView', administracion: 'adminView' };
   const target = document.getElementById(tabMap[tab]);
   if (target) target.style.display = 'block';
   render();
@@ -545,26 +546,13 @@ function goBackSecondary() {
 
 // ── Configurar alertas ────────────────────────────────────────────────────
 function configurarAlertas() {
-  const defs = [
-    ['Demora de lente (pedido sin llegada)', 'lens_delay_warn_days', 'lens_delay_crit_days'],
-    ['Lente llegó y no se programó', 'lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days'],
-    ['Cirugía realizada sin facturar', 'billing_not_done_warn_days', 'billing_not_done_crit_days'],
-    ['Facturada y falta segundo ojo', 'second_eye_missing_warn_days', 'second_eye_missing_crit_days'],
-  ];
-  for (const [label, warnKey, critKey] of defs) {
-    const currentWarn = Number(SETTINGS[warnKey] || 0);
-    const currentCrit = Number(SETTINGS[critKey] || 0);
-    const dias = prompt(
-      `${label}\nDías para alerta (aviso,crítico):`,
-      `${currentWarn},${currentCrit}`
-    );
-    if (dias === null) return;
-    const [w, c] = String(dias).split(',').map(n => parseInt(n.trim(), 10));
-    if (Number.isFinite(w) && w > 0) SETTINGS[warnKey] = w;
-    if (Number.isFinite(c) && c > 0) SETTINGS[critKey] = c;
-  }
-  import('./state.js').then(({ saveSettings }) => { saveSettings(); render(); });
-  toast('✓ Umbrales de alertas actualizados');
+  if (!canConfigureOperationalAlerts()) { toast('No tenés permisos para configurar alertas'); return; }
+  const tab = document.querySelector('.tablink[data-tab="dashboard"]');
+  setTab('dashboard', tab);
+  requestAnimationFrame(() => {
+    const panel = document.getElementById('rdSettings');
+    if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
 }
 
 // ── Delegación de eventos ─────────────────────────────────────────────────
@@ -1167,9 +1155,13 @@ window.startOriginalApp = async function () {
   restoreFilters();
   applyRoleUi();
   initEventDelegation();
-  document.body.classList.add('mode-operacion');
+  if (isMedico() || isSupervisor()) {
+    setTab('dashboard', document.querySelector('.tablink[data-tab="dashboard"]'));
+  } else {
+    document.body.classList.add('mode-operacion');
+    render();
+  }
   updateStickyMetrics();
-  render();
   loadAdmisionConfig().then(() => render()).catch(e => console.warn('[admision] no se pudo cargar configuración', e));
 
   // 4. Conectar Firestore en paralelo
@@ -1198,6 +1190,10 @@ function applyRoleUi() {
     const tab = btn.dataset.tab || '';
     btn.style.display = canView(tab) ? '' : 'none';
   });
+  const btnConfigAlertas = document.getElementById('btnConfigAlertas');
+  if (btnConfigAlertas) btnConfigAlertas.style.display = canConfigureOperationalAlerts() ? '' : 'none';
+  document.body.classList.toggle('role-medico', isMedico());
+  document.body.classList.toggle('role-supervisor', isSupervisor());
   const clinicFilter = document.getElementById('fCli');
   if (clinicFilter && isAdministrativo()) {
     clinicFilter.innerHTML = `<option value="${currentClinic()}">${clinicLabel(currentClinic())}</option>`;
