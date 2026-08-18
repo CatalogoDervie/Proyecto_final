@@ -15,7 +15,7 @@ El comando escribe:
 
 La semilla predeterminada es fija. Puede cambiarse con `--seed`, y la fecha relativa de la demostración con `--fecha-demo`. Los meses completos generan entre 60 y 80 cirugías facturadas; el mes en curso se prorratea hasta la fecha indicada. La cartera activa y las alertas se recalculan manteniendo una operación mayormente normal.
 
-Con `fecha_demo = 2026-08-17` el resultado validado es de 591 episodios para 390 personas: 523 facturados y 68 activos. Las alertas no se persisten como una etiqueta arbitraria; se derivan de los estados, las fechas y los umbrales configurados.
+Con `fecha_demo = 2026-08-17` el resultado validado es de 591 episodios para 390 personas: 523 facturados y 68 activos. Las alertas no se persisten como una etiqueta arbitraria; se derivan de los estados, las fechas y los umbrales configurados. Los casos por falta de segundo ojo quedan limitados a 12 alertas amarillas y 4 rojas, además de los casos recientes todavía sin alerta.
 
 ## Cargar en Firebase
 
