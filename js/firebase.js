@@ -13,8 +13,11 @@ import {
 import { CLIENT_CONFIG } from './cliente-config.js';
 
 const firebaseConfig = CLIENT_CONFIG.firebase;
+const EXPECTED_PROJECT_ID = 'proyecto-final-tig';
 const BLOCKED_PRODUCTION_PROJECT_IDS = new Set(['cirugias-we']);
-const isBlockedProductionProject = BLOCKED_PRODUCTION_PROJECT_IDS.has(String(firebaseConfig?.projectId || '').trim());
+const configuredProjectId = String(firebaseConfig?.projectId || '').trim();
+const isBlockedProductionProject = BLOCKED_PRODUCTION_PROJECT_IDS.has(configuredProjectId);
+const isExpectedProject = configuredProjectId === EXPECTED_PROJECT_ID;
 const isStorageIsolated = window.__PFC_STORAGE__?.ready === true;
 
 // IMPORTANTE: aplicaciones alojadas bajo el mismo origen pueden compartir localStorage.
@@ -44,8 +47,8 @@ let app, db, auth, cirugiasRef, _initOk = false;
     if (isBlockedProductionProject) {
       throw new Error('BLOQUEO DE SEGURIDAD PFC: no se permite conectar al proyecto Firebase de producción cirugias-we.');
     }
-    if (!firebaseConfig?.projectId || String(firebaseConfig.projectId).includes('pendiente')) {
-      throw new Error('Firebase DEMO todavía no configurado. Cree un proyecto Firebase exclusivo para Proyecto Final.');
+    if (!isExpectedProject) {
+      throw new Error(`BLOQUEO DE SEGURIDAD PFC: el único proyecto Firebase permitido es ${EXPECTED_PROJECT_ID}.`);
     }
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -99,7 +102,7 @@ async function withRetry(fn, retries = 4, baseMs = 500) {
 
 let _flushRunning = false;
 async function flushQueue() {
-  if (_flushRunning || !_initOk || isBlockedProductionProject) return;
+  if (_flushRunning || !_initOk || isBlockedProductionProject || !isExpectedProject) return;
   const q = queueLoad();
   if (!q.length) return;
   _flushRunning = true;
@@ -131,7 +134,7 @@ async function upsertRow(row) {
   s.id = id;
   const qid = `upsert_${id}_${Date.now()}`;
   queueAdd({ _qid: qid, type: 'upsert', row: s, ts: new Date().toISOString() });
-  if (!_initOk || isBlockedProductionProject) return id;
+  if (!_initOk || isBlockedProductionProject || !isExpectedProject) return id;
   await withRetry(() => setDoc(doc(cirugiasRef, id), { ...s, _srv: serverTimestamp() }, { merge: true }));
   queueSave(queueLoad().filter(x => x._qid !== qid));
   return id;
@@ -141,7 +144,7 @@ async function deleteRow(id) {
   const sid = String(id);
   const qid = `del_${sid}_${Date.now()}`;
   queueAdd({ _qid: qid, type: 'delete', id: sid, ts: new Date().toISOString() });
-  if (!_initOk || isBlockedProductionProject) return;
+  if (!_initOk || isBlockedProductionProject || !isExpectedProject) return;
   await withRetry(() => deleteDoc(doc(cirugiasRef, sid)));
   queueSave(queueLoad().filter(x => x._qid !== qid));
 }
@@ -154,7 +157,7 @@ async function replaceAllRows(rows = []) {
 }
 
 function listenRows(onRows, onErr) {
-  if (!_initOk || isBlockedProductionProject) return () => {};
+  if (!_initOk || isBlockedProductionProject || !isExpectedProject) return () => {};
   return onSnapshot(
     cirugiasRef,
     { includeMetadataChanges: false },
@@ -164,7 +167,7 @@ function listenRows(onRows, onErr) {
 }
 
 async function exportAllRows() {
-  if (!_initOk || isBlockedProductionProject) throw new Error('Firestore DEMO no inicializado');
+  if (!_initOk || isBlockedProductionProject || !isExpectedProject) throw new Error('Firestore DEMO no inicializado');
   const snap = await getDocs(cirugiasRef);
   return snap.docs.map(d => normRow(d.data(), d.id));
 }

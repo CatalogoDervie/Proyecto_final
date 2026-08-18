@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentProfile() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function isActiveSuperadmin() {
+      return signedIn()
+        && currentProfile().data.active == true
+        && currentProfile().data.role == 'superadmin';
+    }
+
+    function validUserProfile() {
+      return request.resource.data.keys().hasAll([
+          'email', 'role', 'clinica', 'active', 'nombre'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'email', 'role', 'clinica', 'active', 'nombre'
+        ])
+        && request.resource.data.email is string
+        && request.resource.data.nombre is string
+        && request.resource.data.active is bool
+        && request.resource.data.role in [
+          'superadmin', 'administrativo', 'medico', 'supervisor'
+        ]
+        && request.resource.data.clinica in [
+          'ambas', 'clinica_a', 'clinica_b'
+        ];
+    }
+
+    function normalUserKeepsProtectedFields() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.clinica == resource.data.clinica
+        && request.resource.data.active == resource.data.active;
+    }
+
+    match /usuarios/{uid} {
+      allow get: if signedIn()
+        && (request.auth.uid == uid || isActiveSuperadmin());
+      allow list: if isActiveSuperadmin();
+
+      allow create: if isActiveSuperadmin() && validUserProfile();
+      allow delete: if isActiveSuperadmin();
+      allow update: if validUserProfile()
+        && (
+          isActiveSuperadmin()
+          || (
+            signedIn()
+            && request.auth.uid == uid
+            && normalUserKeepsProtectedFields()
+          )
+        );
+    }
+
+    // Las reglas de las demás colecciones se definirán en etapas posteriores.
+    // Hasta entonces quedan cerradas por defecto.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
