@@ -2,6 +2,7 @@
 'use strict';
 
 import { DB } from './state.js';
+import { canConfigure } from './authz.js';
 import { doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
 const GENERAL_DOC = ['configuracion', 'general'];
@@ -42,7 +43,7 @@ function parseDias(v) {
 export function normalizeGeneralConfig(data = {}) {
   const byRows = rowsObrasPorSede();
   const savedBySede = data.obrasPorSede && typeof data.obrasPorSede === 'object' ? data.obrasPorSede : {};
-  const sedes = unique([...(data.sedes || []), ...Object.keys(savedBySede), ...rowsSedes(), 'CDU', 'Gualeguaychú']);
+  const sedes = unique([...(data.sedes || []), ...Object.keys(savedBySede), ...rowsSedes(), 'clinica_a', 'clinica_b']);
   const obrasPorSede = {};
   sedes.forEach(sede => {
     obrasPorSede[sede] = unique([...(savedBySede[sede] || []), ...(byRows[sede] || []), 'PAMI']);
@@ -81,7 +82,7 @@ export async function ensureAdmisionForPatient(row) {
     cfg.obrasPorSede[clinica] = unique([...(cfg.obrasPorSede[clinica] || []), obraSocial]);
   }
   window.ADMISION_CONFIG_CACHE = normalizeGeneralConfig(cfg);
-  if (!conn) return;
+  if (!conn || !canConfigure()) return;
   await setDoc(doc(conn, ...GENERAL_DOC), {
     sedes: window.ADMISION_CONFIG_CACHE.sedes,
     obrasSociales: window.ADMISION_CONFIG_CACHE.obrasSociales,

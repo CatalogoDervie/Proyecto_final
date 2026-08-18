@@ -23,7 +23,7 @@ import {
 } from './firebase-ui.js';
 import { probarConexion, connectorStartJob, connectorPollJob, renderJobStatus } from './connector.js';
 import { abrirModalRecetas, cerrarModalRecetas, generarRecetasDesdeModal } from './recetas.js';
-import { canEditPatient, canFacturar, canManageUsers, canExport, canViewRowHistory, canDelete, canView } from './authz.js';
+import { canEditPatient, canEditClinic, canViewClinic, canFacturar, canManageUsers, canExport, canViewRowHistory, canDelete, canView, defaultClinic, isAdministrativo, currentClinic, clinicLabel } from './authz.js';
 import { openRowHistoryModal, closeRowHistoryModal } from './audit.js';
 import { loadAdmisionConfig, ensureAdmisionForPatient, loadLentessEntregas, entregaForClinica } from './admision-config.js';
 
@@ -176,7 +176,7 @@ async function nuevoModal() {
   if (!canEditPatient()) { toast('No tenés permisos para crear pacientes'); return; }
   const nid = String(DB.nid++);
   const newRow = {
-    id: nid, clinica: 'CDU', nombre: '', dni: '', fnac: '', tel: '', dir: '',
+    id: nid, clinica: defaultClinic(), nombre: '', dni: '', fnac: '', tel: '', dir: '',
     obraSocial: 'PAMI', afiliado: '', ojos: '2 ojos', ojo: 'OI', dioptria: '',
     fechaSolLente: '', fechaLlegaLente: '', recepLente: '', extraSutura: false, extraInyeccion: false, extraVitrectomia: false,
     fechaCir: '', hora: '', estadoCir: '', estadoFac: '', fechaFacturada: '',
@@ -208,6 +208,9 @@ async function eliminar(id) {
 async function upd(id, field, val) {
   const p = findRow(id);
   if (!p) return;
+  if (!canEditClinic(p.clinica)) { toast('No tenés permisos para editar esta clínica'); return; }
+  if (field === 'clinica' && !canEditClinic(val)) { toast('No podés mover un registro a otra clínica'); return; }
+  if (isAdministrativo()) p.clinica = currentClinic();
   p[field] = val;
   validarFila(p);
   try {
@@ -1146,6 +1149,7 @@ window.startOriginalApp = async function () {
     if (cached) {
       const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached;
       if (parsed && Array.isArray(parsed.rows)) {
+        parsed.rows = parsed.rows.filter(r => canViewClinic(r.clinica));
         setDB(parsed);
         showSyncBadge('⟳ Cargando desde caché...', 'blue');
       }
@@ -1190,6 +1194,12 @@ function applyRoleUi() {
     const tab = btn.dataset.tab || '';
     btn.style.display = canView(tab) ? '' : 'none';
   });
+  const clinicFilter = document.getElementById('fCli');
+  if (clinicFilter && isAdministrativo()) {
+    clinicFilter.innerHTML = `<option value="${currentClinic()}">${clinicLabel(currentClinic())}</option>`;
+    clinicFilter.value = currentClinic();
+    clinicFilter.disabled = true;
+  }
 }
 window.addEventListener('authReady', () => {
   if (!window.__appStarted && window.CURRENT_USER) window.startOriginalApp();

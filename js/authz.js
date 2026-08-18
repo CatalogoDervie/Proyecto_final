@@ -1,49 +1,40 @@
 'use strict';
 
-// authz.js — helpers de permisos de interfaz.
-// MODO ACTUAL TEMPORAL: permisos de página desactivados para priorizar funcionamiento.
-// Todos los módulos y acciones quedan habilitados para cualquier usuario logueado/activo.
-// Más adelante se reactivan roles, cuentas, historial y restricciones finas.
+// Autorización centralizada: nunca se decide por email, solo por perfil validado.
+export const CLINICS = Object.freeze({ A: 'clinica_a', B: 'clinica_b' });
+const ROLES = new Set(['superadmin', 'supervisor', 'medico', 'administrativo']);
 
-const ROLE_ALIASES = {
-  admin: 'admin_principal',
-  administrador: 'admin_principal',
-  administracion: 'admin_principal',
-  owner: 'superadmin',
-  dueño: 'superadmin',
-  dueno: 'superadmin',
-  facturador: 'facturacion',
-  facturación: 'facturacion',
-  billing: 'facturacion',
-  lectura: 'solo_vista',
-  readonly: 'solo_vista',
-  read_only: 'solo_vista',
-  viewer: 'solo_vista',
-};
-
-export function normalizeRole(role) {
-  const raw = String(role || 'usuario').trim().toLowerCase();
-  return ROLE_ALIASES[raw] || raw || 'usuario';
+export function normalizeClinic(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (['clinica_a', 'clínica a', 'clinica a', 'a', 'cdu', 'clínica 1', 'clinica 1'].includes(v)) return CLINICS.A;
+  if (['clinica_b', 'clínica b', 'clinica b', 'b', 'gualeguaychu', 'gualeguaychú', 'clínica 2', 'clinica 2'].includes(v)) return CLINICS.B;
+  return '';
 }
-
-export function currentUser() {
-  return window.CURRENT_USER || { uid: '', email: '', profile: { role: 'usuario', active: true } };
+export function clinicLabel(value) { return normalizeClinic(value) === CLINICS.A ? 'Clínica A' : normalizeClinic(value) === CLINICS.B ? 'Clínica B' : '—'; }
+export function currentUser() { return window.CURRENT_USER || { uid:'', email:'', profile:{} }; }
+export function currentRole() { const r = String(currentUser()?.profile?.role || '').trim().toLowerCase(); return ROLES.has(r) ? r : 'usuario'; }
+export function currentClinic() { const c = String(currentUser()?.profile?.clinica || '').trim().toLowerCase(); return c === 'ambas' ? 'ambas' : normalizeClinic(c); }
+export function isActiveUser() { return currentUser()?.profile?.active === true; }
+export function isSuperAdmin() { return isActiveUser() && currentRole() === 'superadmin'; }
+export function isSupervisor() { return isActiveUser() && currentRole() === 'supervisor'; }
+export function isMedico() { return isActiveUser() && currentRole() === 'medico'; }
+export function isAdministrativo() { return isActiveUser() && currentRole() === 'administrativo'; }
+export function canViewClinic(clinic) { const c = normalizeClinic(clinic); return !!c && (isSuperAdmin() || isSupervisor() || isMedico() || (isAdministrativo() && currentClinic() === c)); }
+export function canEditClinic(clinic) { const c = normalizeClinic(clinic); return !!c && (isSuperAdmin() || isSupervisor() || (isAdministrativo() && currentClinic() === c)); }
+export function allowedClinics() { return (isSuperAdmin() || isSupervisor() || isMedico()) ? [CLINICS.A, CLINICS.B] : isAdministrativo() ? [currentClinic()] : []; }
+export function defaultClinic() { return isAdministrativo() ? currentClinic() : CLINICS.A; }
+export function canEditPatient(clinic) { return clinic ? canEditClinic(clinic) : (isAdministrativo() || isSupervisor() || isSuperAdmin()); }
+export function canFacturar() { return isAdministrativo() || isSupervisor() || isSuperAdmin(); }
+export function canManageUsers() { return isSuperAdmin(); }
+export function canConfigure() { return isSuperAdmin(); }
+export function canDelete() { return isSuperAdmin(); }
+export function canExport() { return isAdministrativo() || isSupervisor() || isSuperAdmin(); }
+export function canViewAudit() { return isSupervisor() || isSuperAdmin(); }
+export function canViewRowHistory() { return isSupervisor() || isSuperAdmin(); }
+export function canView(tab = '') {
+  if (!isActiveUser()) return false;
+  if (tab === 'administracion') return canManageUsers();
+  if (['tabla','pedirlente','whatsapp','facturar'].includes(tab)) return canFacturar();
+  if (['kanban','estadisticas'].includes(tab)) return isSupervisor() || isSuperAdmin();
+  return false;
 }
-export function currentRole() {
-  return normalizeRole(currentUser()?.profile?.role);
-}
-
-// Si el login dejó pasar al usuario, la interfaz no bloquea acciones por rol.
-export function isActiveUser() { return currentUser()?.profile?.active !== false; }
-export function isSuperAdmin() { return true; }
-export function isAdminPrincipal() { return true; }
-export function isAdminLike() { return true; }
-export function canView() { return true; }
-export function canEditPatient() { return true; }
-export function canFacturar() { return true; }
-export function canManageUsers() { return true; }
-export function canExport() { return true; }
-export function canDelete() { return true; }
-export function canConfigure() { return true; }
-export function canViewAudit() { return true; }
-export function canViewRowHistory() { return true; }

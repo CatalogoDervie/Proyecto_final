@@ -190,13 +190,14 @@ export function findRow(id) {
 
 // ── Normalización de datos ────────────────────────────────────────────────
 export function normalizarClinica(c) {
-  if (c === 'Clínica 1' || c === 'CDU') return 'CDU';
-  if (c === 'Clínica 2' || c === 'Gualeguaychu' || c === 'Gualeguaychú') return 'Gualeguaychú';
-  return c || 'CDU';
+  const v = String(c || '').trim().toLowerCase();
+  if (['clinica_a', 'clínica a', 'clinica a', 'clínica 1', 'clinica 1', 'cdu'].includes(v)) return 'clinica_a';
+  if (['clinica_b', 'clínica b', 'clinica b', 'clínica 2', 'clinica 2', 'gualeguaychu', 'gualeguaychú'].includes(v)) return 'clinica_b';
+  return '';
 }
 
 export function getDioptria(p) { return p.dioptria || p.lio || ''; }
-export function clinicaClass(c) { return c === 'CDU' ? 'bcl1' : 'bcl2'; }
+export function clinicaClass(c) { return normalizarClinica(c) === 'clinica_a' ? 'bcl1' : 'bcl2'; }
 
 function normDateField(v) {
   const dt = parseDateOnly(v);

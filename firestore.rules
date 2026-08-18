@@ -31,7 +31,13 @@ service cloud.firestore {
         ]
         && request.resource.data.clinica in [
           'ambas', 'clinica_a', 'clinica_b'
-        ];
+        ]
+        && (
+          (request.resource.data.role == 'administrativo'
+            && request.resource.data.clinica in ['clinica_a', 'clinica_b'])
+          || (request.resource.data.role in ['medico', 'supervisor', 'superadmin']
+            && request.resource.data.clinica == 'ambas')
+        );
     }
 
     function normalUserKeepsProtectedFields() {
@@ -56,6 +62,47 @@ service cloud.firestore {
             && normalUserKeepsProtectedFields()
           )
         );
+    }
+
+    function isActiveRole(role) {
+      return signedIn()
+        && currentProfile().data.active == true
+        && currentProfile().data.role == role;
+    }
+    function isSupervisor() { return isActiveRole('supervisor'); }
+    function isMedico() { return isActiveRole('medico'); }
+    function isAdministrativo() { return isActiveRole('administrativo'); }
+    function validClinic(clinica) { return clinica in ['clinica_a', 'clinica_b']; }
+    function ownClinic(clinica) {
+      return isAdministrativo()
+        && currentProfile().data.clinica == clinica
+        && validClinic(clinica);
+    }
+    function canReadCirugia() {
+      return isActiveSuperadmin() || isSupervisor() || isMedico()
+        || ownClinic(resource.data.clinica);
+    }
+    function canWriteCirugia() {
+      return isActiveSuperadmin() || isSupervisor()
+        || (ownClinic(resource.data.clinica)
+          && request.resource.data.clinica == resource.data.clinica);
+    }
+    function validCirugia() {
+      return request.resource.data.clinica is string
+        && validClinic(request.resource.data.clinica);
+    }
+
+    match /cirugias/{id} {
+      allow get, list: if canReadCirugia();
+      allow create: if validCirugia()
+        && (isActiveSuperadmin() || isSupervisor() || ownClinic(request.resource.data.clinica));
+      allow update: if validCirugia() && canWriteCirugia();
+      allow delete: if isActiveSuperadmin();
+    }
+
+    match /configuracion/{id} {
+      allow read: if signedIn() && currentProfile().data.active == true;
+      allow write: if isActiveSuperadmin();
     }
 
     // Las reglas de las demás colecciones se definirán en etapas posteriores.
