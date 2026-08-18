@@ -197,6 +197,7 @@ export function normalizarClinica(c) {
 }
 
 export function getDioptria(p) { return p.dioptria || p.lio || ''; }
+export function isDemoSynthetic(p) { return p?.demoSynthetic === true; }
 export function clinicaClass(c) { return normalizarClinica(c) === 'clinica_a' ? 'bcl1' : 'bcl2'; }
 
 function normDateField(v) {

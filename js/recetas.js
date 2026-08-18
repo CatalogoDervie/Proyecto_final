@@ -32,6 +32,7 @@ function isPamiRow(row) {
 
 export function abrirModalRecetas(row) {
   if (!row) { toast('No hay paciente seleccionado para recetas'); return; }
+  if (row.demoSynthetic === true) { toast('BASE DEMO: recetas PAMI bloqueadas para pacientes sintéticos'); return; }
   if (!isPamiRow(row)) { toast('El paciente no pertenece a PAMI'); return; }
   const afiliado = cleanDigits(row.afiliado || '');
   if (!afiliado) { toast('El paciente no tiene afiliado PAMI'); return; }
