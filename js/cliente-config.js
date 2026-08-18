@@ -16,7 +16,7 @@ export const CLIENT_CONFIG = {
     logoUrl: ''
   },
   firebase: {
-    apiKey: 'AIzaSyB93k9Z_A08t6Vy3pTw24u0TBpiT0gxZyA',
+    apiKey: 'AIzaSyB93k9Z_A08t6Vy3pTw24u0TBpiTqgxZyA',
     authDomain: 'proyecto-final-tig.firebaseapp.com',
     projectId: 'proyecto-final-tig',
     storageBucket: 'proyecto-final-tig.firebasestorage.app',
