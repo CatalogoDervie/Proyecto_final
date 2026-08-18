@@ -7,7 +7,7 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
-  collection, doc, setDoc, getDocs,
+  collection, doc, setDoc, getDocs, query, where,
   deleteDoc, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 import { CLIENT_CONFIG } from './cliente-config.js';
@@ -23,6 +23,21 @@ const isStorageIsolated = window.__PFC_STORAGE__?.ready === true;
 // IMPORTANTE: aplicaciones alojadas bajo el mismo origen pueden compartir localStorage.
 // La capa pfc-storage.js crea un espacio exclusivo para este Proyecto Final.
 const QUEUE_KEY = 'pfc_demo_fsc_write_queue';
+const CLINIC_A = 'clinica_a';
+const CLINIC_B = 'clinica_b';
+function clinicId(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (['clinica_a','cdu','clínica a','clinica a'].includes(v)) return CLINIC_A;
+  if (['clinica_b','gualeguaychú','gualeguaychu','clínica b','clinica b'].includes(v)) return CLINIC_B;
+  return '';
+}
+function profile() { return window.CURRENT_USER?.profile || {}; }
+function role() { return String(profile().role || '').toLowerCase(); }
+function canEditClinic(clinic) { return ['superadmin','supervisor'].includes(role()) || (role() === 'administrativo' && profile().clinica === clinic); }
+function scopedCirugiasRef() {
+  const c = clinicId(profile().clinica);
+  return role() === 'administrativo' && c ? query(cirugiasRef, where('clinica', '==', c)) : cirugiasRef;
+}
 function queueLoad() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } }
 function queueSave(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e) { console.warn('[PFC Queue] no se pudo persistir:', e.message); } }
 function queueAdd(op) {
@@ -78,6 +93,9 @@ function normRow(raw, docId) {
 }
 function sanitize(row) {
   const out = { ...row };
+  const assigned = clinicId(out.clinica) || (role() === 'administrativo' ? clinicId(profile().clinica) : '');
+  if (!assigned || !canEditClinic(assigned)) throw new Error('No tenés permisos para escribir en esta clínica.');
+  out.clinica = assigned;
   const now = new Date().toISOString();
   out.id = String(out.id || '');
   if (!out.createdAt) out.createdAt = now;
@@ -159,7 +177,7 @@ async function replaceAllRows(rows = []) {
 function listenRows(onRows, onErr) {
   if (!_initOk || isBlockedProductionProject || !isExpectedProject) return () => {};
   return onSnapshot(
-    cirugiasRef,
+    scopedCirugiasRef(),
     { includeMetadataChanges: false },
     snap => onRows(snap.docs.map(d => normRow(d.data(), d.id))),
     onErr || (e => console.error('[Firestore PFC] listener:', e))
@@ -168,7 +186,7 @@ function listenRows(onRows, onErr) {
 
 async function exportAllRows() {
   if (!_initOk || isBlockedProductionProject || !isExpectedProject) throw new Error('Firestore DEMO no inicializado');
-  const snap = await getDocs(cirugiasRef);
+  const snap = await getDocs(scopedCirugiasRef());
   return snap.docs.map(d => normRow(d.data(), d.id));
 }
 

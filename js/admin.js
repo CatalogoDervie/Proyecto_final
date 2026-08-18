@@ -105,25 +105,22 @@ async function saveLentessConfig(payload) {
   await setDoc(doc(db, 'configuracion', 'lentess_entregas'), { ...normalizeLentessConfig(payload), updatedAt: serverTimestamp(), updatedBy: norm(window.CURRENT_USER?.email) }, { merge: true });
 }
 
-function userIsAdmin(u) {
-  return ['admin_principal', 'superadmin', 'administrador', 'admin'].includes(String(u.role || '').toLowerCase()) || u.admin === true;
-}
-function nextRoleForUser(u, isAdmin) {
-  if (!isAdmin) return 'operador';
-  return String(u.role || '').toLowerCase() === 'superadmin' ? 'superadmin' : 'admin_principal';
-}
+const USER_ROLES = ['administrativo', 'medico', 'supervisor', 'superadmin'];
+const USER_CLINICS = ['clinica_a', 'clinica_b', 'ambas'];
+function clinicLabel(c) { return c === 'clinica_a' ? 'Clínica A' : c === 'clinica_b' ? 'Clínica B' : 'Ambas'; }
 function renderUsers(users) {
   return `
     <section class="admin-card admin-users-card">
       <div class="admin-card-head">
-        <div><h3>Usuarios</h3><p>Solo datos necesarios: mail, permiso de administrador y estado activo.</p></div>
+        <div><h3>Usuarios</h3><p>Roles y clínica se validan antes de guardar. No existe autoasignación.</p></div>
       </div>
       <div class="admin-table-wrap">
         <table class="wa-table admin-table">
-          <thead><tr><th>Mail</th><th style="width:150px">Administrador</th><th style="width:120px">Activo</th><th style="width:120px">Acción</th></tr></thead>
+          <thead><tr><th>Mail</th><th>Rol</th><th>Clínica</th><th style="width:120px">Activo</th><th style="width:120px">Acción</th></tr></thead>
           <tbody>${users.map(u => `<tr>
-            <td><strong>${escapeHtml(u.email || '')}</strong>${u.role === 'superadmin' ? '<div class="cell-sub">superadmin</div>' : ''}</td>
-            <td><label class="admin-check"><input type="checkbox" data-u-id="${escapeAttr(u.id)}" data-field="admin" ${userIsAdmin(u) ? 'checked' : ''}> Sí</label></td>
+            <td><strong>${escapeHtml(u.email || '')}</strong><div class="cell-sub">${escapeHtml(u.id)}</div></td>
+            <td><select data-u-id="${escapeAttr(u.id)}" data-field="role">${USER_ROLES.map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
+            <td><select data-u-id="${escapeAttr(u.id)}" data-field="clinica">${USER_CLINICS.map(c => `<option value="${c}" ${c === u.clinica ? 'selected' : ''}>${clinicLabel(c)}</option>`).join('')}</select></td>
             <td><label class="admin-check"><input type="checkbox" data-u-id="${escapeAttr(u.id)}" data-field="active" ${u.active ? 'checked' : ''}> Activo</label></td>
             <td><button class="btn" data-user-save="${escapeAttr(u.id)}">Guardar</button></td>
           </tr>`).join('')}</tbody>
@@ -252,11 +249,14 @@ async function renderAdminContent() {
 
     wrap.querySelectorAll('[data-user-save]').forEach(btn => btn.addEventListener('click', async ev => {
       const uid = ev.target.dataset.userSave;
-      const user = users.find(u => String(u.id) === String(uid));
-      const isAdmin = !!wrap.querySelector(`[data-u-id="${CSS.escape(uid)}"][data-field="admin"]`)?.checked;
+      const role = wrap.querySelector(`[data-u-id="${CSS.escape(uid)}"][data-field="role"]`)?.value;
+      let clinica = wrap.querySelector(`[data-u-id="${CSS.escape(uid)}"][data-field="clinica"]`)?.value;
       const active = !!wrap.querySelector(`[data-u-id="${CSS.escape(uid)}"][data-field="active"]`)?.checked;
+      if (!USER_ROLES.includes(role)) throw new Error('Rol inválido');
+      clinica = role === 'administrativo' ? clinica : 'ambas';
+      if (role === 'administrativo' && !['clinica_a', 'clinica_b'].includes(clinica)) throw new Error('Un administrativo debe pertenecer a una clínica');
       const db = await dbOrThrow();
-      await updateDoc(doc(db, 'usuarios', uid), { role: nextRoleForUser(user || {}, isAdmin), active, updatedAt: serverTimestamp() });
+      await updateDoc(doc(db, 'usuarios', uid), { role, clinica, active });
       toast('Usuario actualizado');
     }));
 

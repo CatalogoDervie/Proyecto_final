@@ -14,7 +14,7 @@ import {
   backupDiario
 } from './state.js';
 import { hoyISO, diffDays, toDateOnly } from './utils.js';
-import { canViewRowHistory } from './authz.js';
+import { canViewRowHistory, allowedClinics, clinicLabel, isAdministrativo, canEditClinic } from './authz.js';
 import { getAdmisionOptions } from './admision-config.js';
 
 // ── Columnas de la tabla principal ────────────────────────────────────────
@@ -58,7 +58,20 @@ function fillSelectOptions(selectId, items, firstLabel) {
 }
 function refreshAdmisionFilterOptions() {
   const cfg = getAdmisionOptions();
-  fillSelectOptions('fCli', cfg.sedes || [], 'Todas las clínicas');
+  const sel = document.getElementById('fCli');
+  if (sel) {
+    const clinics = allowedClinics();
+    if (isAdministrativo()) {
+      sel.innerHTML = clinics.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(clinicLabel(v))}</option>`).join('');
+      sel.value = clinics[0] || '';
+      sel.disabled = true;
+    } else {
+      const current = sel.value || '';
+      sel.innerHTML = `<option value="">Ambas clínicas</option>${clinics.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(clinicLabel(v))}</option>`).join('')}`;
+      if (current && clinics.includes(current)) sel.value = current;
+      sel.disabled = false;
+    }
+  }
   fillSelectOptions('fOS', cfg.obrasSociales || [], 'Todas las obras sociales');
 }
 
@@ -204,7 +217,7 @@ export function renderAlerts() {
   listEl.innerHTML = flat.length ? flat.map(({ p, a }) => `
     <div class="alert-row" style="background:${sevBg[a.severity] || '#f8fafc'}" data-open-side="${escapeAttr(p.id)}">
       <div>
-        <div class="ar-name">${escapeHtml(p.nombre || '—')} <span style="font-size:10px;color:#9ca3af;font-weight:400">· ${escapeHtml(p.clinica)}</span></div>
+        <div class="ar-name">${escapeHtml(p.nombre || '—')} <span style="font-size:10px;color:#9ca3af;font-weight:400">· ${escapeHtml(clinicLabel(p.clinica))}</span></div>
         <div style="font-size:11px;color:${sevColor[a.severity] || '#6b7280'};font-weight:700;margin-top:2px">${escapeHtml(a.msg)}</div>
         <div class="ar-action">${escapeHtml(alertActionText(a.type))}</div>
       </div>
@@ -304,7 +317,7 @@ export function renderTabla() {
     const pa = proximaAccion(p);
     const fechaClave = p.fechaCir || p.fechaLlegaLente || p.fechaSolLente || '';
     const fechaLabel = p.fechaCir ? 'Cirugía' : (p.fechaLlegaLente ? 'Llegada lente' : (p.fechaSolLente ? 'Solicitud lente' : 'Sin fecha'));
-    const contexto = [p.clinica || '—', p.obraSocial || '—', p.ojo || '—'].filter(Boolean).join(' · ');
+    const contexto = [clinicLabel(p.clinica), p.obraSocial || '—', p.ojo || '—'].filter(Boolean).join(' · ');
     const mainAction = pa.label === 'Facturar' ? `<button class="btn btn-row-open" data-row-action="facturar" data-open-side="${escapeAttr(p.id)}">Facturar</button>` :
       pa.label.includes('Programar') ? `<button class="btn btn-row-open" data-row-action="programar" data-open-side="${escapeAttr(p.id)}">Programar</button>` :
       pa.label.includes('Realizada') ? `<button class="btn btn-row-open" data-row-action="realizada" data-open-side="${escapeAttr(p.id)}">Marcar realizada</button>` :
@@ -313,7 +326,7 @@ export function renderTabla() {
     const rowCells = {
       paciente: `<td data-label="Paciente"><div class="cell" title="${escapeAttr(p.nombre || '—')}"><div class="cell-stack"><div class="cell-main"><span style="color:#9ca3af;margin-right:6px;font-size:10px">${i + 1}</span>${escapeHtml(p.nombre || '—')}${alertDot}</div><div class="cell-sub">DNI ${escapeHtml(p.dni || '—')} · Afiliado ${escapeHtml(p.afiliado || '—')}</div></div></div></td>`,
       ojo: `<td data-label="Ojo + dioptría"><div class="cell"><div class="cell-stack"><div class="cell-main">${escapeHtml(p.ojo || '—')} · ${escapeHtml(getDioptria(p) || 'sin dioptría')}</div><div class="cell-sub">Ojo a operar</div></div></div></td>`,
-      obraSocial: `<td data-label="Obra social"><div class="cell"><div class="cell-stack"><div class="cell-main">${escapeHtml(p.obraSocial || '—')}</div><div class="cell-sub">${escapeHtml(p.clinica || '—')}</div></div></div></td>`,
+      obraSocial: `<td data-label="Obra social"><div class="cell"><div class="cell-stack"><div class="cell-main">${escapeHtml(p.obraSocial || '—')}</div><div class="cell-sub">${escapeHtml(clinicLabel(p.clinica))}</div></div></div></td>`,
       estadoActual: `<td data-label="Estado actual"><div class="cell"><span class="badge ${bc(e)}">${escapeHtml(e.length > 34 ? e.substring(0, 32) + '…' : e)}</span></div></td>`,
       proximaAccion: `<td data-label="Próxima acción"><div class="cell"><span class="pa-chip" style="color:${pa.color};background:${pa.bg}">${pa.icon} ${escapeHtml(pa.label)}</span></div></td>`,
       fechaClave: `<td data-label="Fecha clave"><div class="cell"><div class="cell-stack"><div class="cell-main">${escapeHtml(fd(fechaClave) || '—')}</div><div class="cell-sub">${escapeHtml(fechaLabel)}</div></div></div></td>`,
@@ -354,7 +367,7 @@ export function renderKanban() {
             <div class="kancard-name">${escapeHtml(p.nombre || '—')}</div>
             <div class="kancard-meta">
               <span>${escapeHtml(p.ojo || '')}</span>
-              <span class="${clinicaClass(p.clinica)}" style="border-radius:4px;padding:1px 5px">${escapeHtml(p.clinica)}</span>
+              <span class="${clinicaClass(p.clinica)}" style="border-radius:4px;padding:1px 5px">${escapeHtml(clinicLabel(p.clinica))}</span>
             </div>
             ${als.length ? `<div class="kancard-alert">⚠ ${escapeHtml(als[0].msg || '')}</div>` : ''}
           </div>`;
@@ -401,7 +414,7 @@ export function openSide(id) {
   const sideNameEl = document.getElementById('sideName');
   const sideSubEl = document.getElementById('sideSub');
   if (sideNameEl) sideNameEl.textContent = p.nombre || '—';
-  if (sideSubEl) sideSubEl.textContent = `DNI ${p.dni} · ${p.clinica} · ${p.obraSocial}`;
+  if (sideSubEl) sideSubEl.textContent = `DNI ${p.dni} · ${clinicLabel(p.clinica)} · ${p.obraSocial}`;
   const bcl = bc(e);
   const bcMap = { b0: '#fee2e2', b1: '#ffedd5', b2: '#fef9c3', b3: '#dbeafe', b4: '#ede9fe', b5: '#d1fae5', b6: '#dcfce7', b7: '#bbf7d0', b8: '#fce7f3', b9: '#fef3c7' };
   const tcMap = { b0: '#991b1b', b1: '#9a3412', b2: '#854d0e', b3: '#1e40af', b4: '#5b21b6', b5: '#065f46', b6: '#14532d', b7: '#14532d', b8: '#9d174d', b9: '#78350f' };
@@ -440,7 +453,7 @@ export function openSide(id) {
           const obras = [...new Set([...(adm.obrasPorSede?.[p.clinica || ''] || []), ...(adm.obrasSociales || []), p.obraSocial || '', 'PAMI'].filter(Boolean))];
           return `<datalist id="sideClinicasList">${sedes.map(x => `<option value="${escapeAttr(x)}"></option>`).join('')}</datalist><datalist id="sideObrasSocialesList">${obras.map(x => `<option value="${escapeAttr(x)}"></option>`).join('')}</datalist>`;
         })()}
-        <div class="srow"><label>Clínica</label><input type="text" list="sideClinicasList" data-field="clinica" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.clinica || '')}" placeholder="Elegir o escribir nueva sede"></div>
+        <div class="srow"><label>Clínica</label><select data-field="clinica" data-row-id="${escapeAttr(id)}" ${canEditClinic(p.clinica) && !isAdministrativo() ? '' : 'disabled'}>${allowedClinics().map(v => `<option value="${escapeAttr(v)}" ${v === p.clinica ? 'selected' : ''}>${escapeHtml(clinicLabel(v))}</option>`).join('')}</select></div>
         <div class="srow"><label>Obra Social</label><input type="text" list="sideObrasSocialesList" data-field="obraSocial" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.obraSocial || 'PAMI')}" placeholder="Elegir o escribir nueva obra social"></div>
         <div class="srow"><label>N° Afiliado</label><input type="text" data-field="afiliado" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.afiliado || '')}"></div>
       </div>
@@ -556,7 +569,7 @@ export function refreshSidePanel(p) {
   const sn = document.getElementById('sideName');
   const ss = document.getElementById('sideSub');
   if (sn) sn.textContent = p.nombre || '—';
-  if (ss) ss.textContent = `DNI ${p.dni} · ${p.clinica} · ${p.obraSocial}`;
+  if (ss) ss.textContent = `DNI ${p.dni} · ${clinicLabel(p.clinica)} · ${p.obraSocial}`;
 }
 
 // ── Estadísticas (lazy) ───────────────────────────────────────────────────

@@ -8,6 +8,8 @@ import {
   FIRESTORE_UNSUB, setFirestoreUnsub, APPS_SCRIPT_URL,
   normalizarData, backupDiario
 } from './state.js';
+import { canViewClinic, canEditClinic } from './authz.js';
+function rowsInScope(rows) { return (rows || []).filter(r => canViewClinic(r.clinica)); }
 // render() is called lazily to avoid circular dependency
 async function render() { const m = await import('./render.js'); m.render(); }
 
@@ -32,6 +34,9 @@ let _backupDiarioHecho = false;
 let _lastRealtimeSig = '';
 
 export async function save(changedRow) {
+  if (changedRow && !canEditClinic(changedRow.clinica)) {
+    throw new Error('No tenés permisos para modificar registros de esta clínica.');
+  }
   if (!_backupDiarioHecho) { backupDiario(); _backupDiarioHecho = true; }
   try {
     localStorage.setItem('cirugias_cache', JSON.stringify(DB));
@@ -116,6 +121,7 @@ export async function loadFromServer() {
           const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached;
           if (parsed && Array.isArray(parsed.rows)) {
             parsed.rows.forEach(r => { r.id = String(r.id ?? ''); });
+            parsed.rows = rowsInScope(parsed.rows);
             setDB(parsed);
             showSyncBadge('⟳ Caché local cargado…', 'blue');
           }
@@ -160,7 +166,7 @@ export async function loadFromServer() {
 export function ensureFirestoreRealtimeSync() {
   if (!FIRESTORE_ENABLED || !window.firestoreConnector || FIRESTORE_UNSUB) return;
   const unsub = window.firestoreConnector.listenRows((rows) => {
-    const safeRows = Array.isArray(rows) ? rows : [];
+    const safeRows = rowsInScope(Array.isArray(rows) ? rows : []);
     safeRows.forEach(r => { r.id = String(r.id ?? ''); });
     const signature = safeRows
       .map(r => `${r.id}|${r.updatedAt || ''}|${r.estadoFac || ''}|${r.estadoCir || ''}`)
