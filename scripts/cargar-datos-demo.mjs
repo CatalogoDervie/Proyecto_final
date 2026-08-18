@@ -108,37 +108,80 @@ async function writeChunk(projectId, token, rows) {
   })));
 }
 
+async function deleteChunk(projectId, token, docs) {
+  return Promise.all(docs.map(document => {
+    const id = decodeURIComponent(document.name.split('/').pop());
+    return jsonFetch(`${baseUrl(projectId)}/cirugias/${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: headers(token)
+    });
+  }));
+}
+
 async function main() {
+  const verifyOnly = process.env.DEMO_VERIFY_ONLY === '1';
   const { projectId, apiKey } = parseConfig();
   const payload = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   const rows = payload.episodes || [];
   if (payload.metadata?.projectId !== EXPECTED_PROJECT_ID) fail('el archivo generado no pertenece a proyecto-final-tig');
-  if (rows.length !== 350 || payload.metadata?.personas !== 200) fail('el archivo debe contener 200 personas y 350 episodios');
+  if (payload.metadata?.episodios !== rows.length || rows.length < 500) fail('volumen generado inválido');
+  if (new Set(rows.map(row => row.id)).size !== rows.length) fail('el archivo generado contiene IDs duplicados');
+  if (new Set(rows.map(row => row.personaId)).size !== payload.metadata?.personas) fail('cantidad de personas inconsistente');
   if (rows.some(row => row.demoSynthetic !== true || row.extraVitrectomia || row.vitrectomia)) fail('dataset no sintético o con vitrectomía');
+  if (JSON.stringify(payload).includes(BLOCKED_PROJECT_IDS.values().next().value)) fail('el dataset contiene una referencia al Firebase real');
 
   const auth = await signIn(apiKey);
   await verifySuperadmin(projectId, auth);
   const existing = await listCollection(projectId, auth.token);
+  const generatedIds = new Set(rows.map(row => row.id));
+  const existingDecoded = existing.map(doc => ({
+    id: decodeURIComponent(doc.name.split('/').pop()),
+    data: Object.fromEntries(Object.entries(doc.fields || {}).map(([k, v]) => [k, fromFirestoreValue(v)]))
+  }));
   if (existing.length) {
-    const existingIds = new Set(existing.map(doc => decodeURIComponent(doc.name.split('/').pop())));
-    const generatedIds = new Set(rows.map(row => row.id));
-    const exactSameSet = existingIds.size === generatedIds.size && [...existingIds].every(id => generatedIds.has(id));
-    if (!exactSameSet) fail(`/cirugias no está vacía (${existing.length} documentos) y contiene IDs ajenos a esta base demo`);
-    console.log('La base demo ya tiene exactamente los 350 IDs esperados; se actualizará de forma idempotente.');
+    if (existingDecoded.some(row => row.data.demoSynthetic !== true)) {
+      fail(`/cirugias contiene documentos que no están marcados como sintéticos; no se reemplazará nada`);
+    }
+    console.log(`Se verificaron ${existing.length} documentos existentes, todos sintéticos.`);
   }
 
-  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-    await writeChunk(projectId, auth.token, rows.slice(i, i + CHUNK_SIZE));
-    console.log(`Cargados ${Math.min(i + CHUNK_SIZE, rows.length)}/${rows.length}`);
+  if (!verifyOnly) {
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      await writeChunk(projectId, auth.token, rows.slice(i, i + CHUNK_SIZE));
+      console.log(`Cargados ${Math.min(i + CHUNK_SIZE, rows.length)}/${rows.length}`);
+    }
+
+    const obsolete = existing.filter(doc => !generatedIds.has(decodeURIComponent(doc.name.split('/').pop())));
+    for (let i = 0; i < obsolete.length; i += CHUNK_SIZE) {
+      await deleteChunk(projectId, auth.token, obsolete.slice(i, i + CHUNK_SIZE));
+      console.log(`Retirados ${Math.min(i + CHUNK_SIZE, obsolete.length)}/${obsolete.length} documentos sintéticos obsoletos`);
+    }
   }
 
-  const loaded = await listCollection(projectId, auth.token);
+  const loaded = verifyOnly ? existing : await listCollection(projectId, auth.token);
   const decoded = loaded.map(doc => Object.fromEntries(Object.entries(doc.fields || {}).map(([k, v]) => [k, fromFirestoreValue(v)])));
-  if (loaded.length !== 350) fail(`verificación posterior: se esperaban 350 documentos y hay ${loaded.length}`);
+  const loadedIds = new Set(loaded.map(doc => decodeURIComponent(doc.name.split('/').pop())));
+  if (loaded.length !== rows.length || [...generatedIds].some(id => !loadedIds.has(id))) {
+    fail(`verificación posterior: se esperaban exactamente ${rows.length} documentos y hay ${loaded.length}`);
+  }
   if (decoded.some(row => row.demoSynthetic !== true)) fail('verificación posterior: existe un documento sin marca sintética');
+  const decodedById = new Map(decoded.map(row => [row.id, row]));
+  for (const expected of rows) {
+    const actual = decodedById.get(expected.id);
+    if (!actual || Object.entries(expected).some(([key, value]) => JSON.stringify(actual[key]) !== JSON.stringify(value))) {
+      fail(`verificación posterior: ${expected.id} no coincide con el dataset validado`);
+    }
+  }
   const clinics = decoded.reduce((acc, row) => (acc[row.clinica] = (acc[row.clinica] || 0) + 1, acc), {});
-  if (clinics.clinica_a !== 175 || clinics.clinica_b !== 175) fail(`distribución posterior inválida: ${JSON.stringify(clinics)}`);
-  console.log(JSON.stringify({ ok: true, projectId, documentos: loaded.length, clinicas: clinics, uid: auth.uid }, null, 2));
+  if (clinics.clinica_a !== payload.metadata?.clinicas?.clinica_a || clinics.clinica_b !== payload.metadata?.clinicas?.clinica_b) {
+    fail(`distribución posterior inválida: ${JSON.stringify(clinics)}`);
+  }
+  console.log(JSON.stringify({
+    ok: true, modo: verifyOnly ? 'solo_verificacion' : 'carga_y_verificacion',
+    projectId, documentos: loaded.length, personas: payload.metadata.personas,
+    facturadas: payload.metadata.finalizadosFacturados, activos: payload.metadata.activos,
+    facturadasPorMes: payload.metadata.facturadasPorMes,
+    alertas: payload.metadata.alertas, clinicas: clinics, uid: auth.uid
+  }, null, 2));
 }
 
 main().catch(error => {
