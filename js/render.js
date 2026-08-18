@@ -36,7 +36,8 @@ export function render() {
   renderQueueRail();
   renderActiveFiltersBar();
   renderAlerts();
-  if (currentTab === 'tabla') renderTabla();
+  if (currentTab === 'dashboard') renderRoleDashboardLazy();
+  else if (currentTab === 'tabla') renderTabla();
   else if (currentTab === 'pedirlente') renderPedirLenteLazy();
   else if (currentTab === 'kanban') renderKanban();
   else if (currentTab === 'calendario') renderCalendario();
@@ -45,6 +46,11 @@ export function render() {
   else if (currentTab === 'whatsapp') renderWhatsAppTab();
   else if (currentTab === 'administracion') renderAdministracionLazy();
   else renderTabla();
+}
+
+async function renderRoleDashboardLazy() {
+  const { renderRoleDashboard } = await import('./role-dashboard.js');
+  renderRoleDashboard();
 }
 
 
