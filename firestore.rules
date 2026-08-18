@@ -100,9 +100,54 @@ service cloud.firestore {
       allow delete: if isActiveSuperadmin();
     }
 
+    function validOperationalAlertSettings() {
+      return request.resource.data.keys().hasAll([
+          'second_eye_missing_warn_days', 'second_eye_missing_crit_days',
+          'lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days',
+          'billing_not_done_warn_days', 'billing_not_done_crit_days',
+          'lens_delay_warn_days', 'lens_delay_crit_days',
+          'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'second_eye_missing_warn_days', 'second_eye_missing_crit_days',
+          'lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days',
+          'billing_not_done_warn_days', 'billing_not_done_crit_days',
+          'lens_delay_warn_days', 'lens_delay_crit_days',
+          'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.second_eye_missing_warn_days is int
+        && request.resource.data.second_eye_missing_crit_days is int
+        && request.resource.data.lens_arrived_not_scheduled_warn_days is int
+        && request.resource.data.lens_arrived_not_scheduled_crit_days is int
+        && request.resource.data.billing_not_done_warn_days is int
+        && request.resource.data.billing_not_done_crit_days is int
+        && request.resource.data.lens_delay_warn_days is int
+        && request.resource.data.lens_delay_crit_days is int
+        && request.resource.data.second_eye_missing_warn_days > 0
+        && request.resource.data.second_eye_missing_crit_days <= 365
+        && request.resource.data.second_eye_missing_warn_days < request.resource.data.second_eye_missing_crit_days
+        && request.resource.data.lens_arrived_not_scheduled_warn_days > 0
+        && request.resource.data.lens_arrived_not_scheduled_crit_days <= 365
+        && request.resource.data.lens_arrived_not_scheduled_warn_days < request.resource.data.lens_arrived_not_scheduled_crit_days
+        && request.resource.data.billing_not_done_warn_days > 0
+        && request.resource.data.billing_not_done_crit_days <= 365
+        && request.resource.data.billing_not_done_warn_days < request.resource.data.billing_not_done_crit_days
+        && request.resource.data.lens_delay_warn_days > 0
+        && request.resource.data.lens_delay_crit_days <= 365
+        && request.resource.data.lens_delay_warn_days < request.resource.data.lens_delay_crit_days
+        && request.resource.data.updatedBy == request.auth.uid;
+    }
+
+    match /configuracion/alertas_operativas {
+      allow read: if signedIn() && currentProfile().data.active == true;
+      allow create, update: if (isActiveSuperadmin() || isSupervisor())
+        && validOperationalAlertSettings();
+      allow delete: if isActiveSuperadmin();
+    }
+
     match /configuracion/{id} {
       allow read: if signedIn() && currentProfile().data.active == true;
-      allow write: if isActiveSuperadmin();
+      allow write: if id != 'alertas_operativas' && isActiveSuperadmin();
     }
 
     // Las reglas de las demás colecciones se definirán en etapas posteriores.
