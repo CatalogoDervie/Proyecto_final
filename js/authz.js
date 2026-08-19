@@ -36,7 +36,8 @@ export function canView(tab = '') {
   if (!isActiveUser()) return false;
   if (tab === 'dashboard') return isMedico() || isSupervisor() || isSuperAdmin();
   if (tab === 'administracion') return canManageUsers();
-  if (['tabla','pedirlente','whatsapp','facturar'].includes(tab)) return canFacturar();
-  if (['kanban','estadisticas'].includes(tab)) return isSupervisor() || isSuperAdmin();
+  if (['facturar','estadisticas'].includes(tab)) return false;
+  if (['tabla','pedirlente','whatsapp'].includes(tab)) return canFacturar();
+  if (tab === 'kanban') return isSupervisor() || isSuperAdmin();
   return false;
 }
