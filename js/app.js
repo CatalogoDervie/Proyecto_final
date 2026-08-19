@@ -178,7 +178,7 @@ async function nuevoModal() {
   const nid = String(DB.nid++);
   const newRow = {
     id: nid, clinica: defaultClinic(), nombre: '', dni: '', fnac: '', tel: '', dir: '',
-    obraSocial: 'PAMI', afiliado: '', ojos: '2 ojos', ojo: 'OI', dioptria: '',
+    obraSocial: '', afiliado: '', ojos: '2 ojos', ojo: 'OI', dioptria: '',
     fechaSolLente: '', fechaLlegaLente: '', recepLente: '', extraSutura: false, extraInyeccion: false, extraVitrectomia: false,
     fechaCir: '', hora: '', estadoCir: '', estadoFac: '', fechaFacturada: '',
     fechaCarga: hoyISO(), notas: ''
