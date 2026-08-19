@@ -49,7 +49,6 @@
             <button class="btn primary" id="btnNuevo">+ Nuevo paciente</button>
             <button class="btn" id="btnSync" title="Recargar datos del servidor">↺ Sync</button>
             <span id="syncBadge"></span>
-            <span id="connectorBadge" class="connector-badge off" title="Clic para probar conexión" style="cursor:pointer">⚫ Conector</span>
             <div id="authMeta">
               <span id="authUserBadge"></span>
               <span id="authRoleBadge"></span>
@@ -65,8 +64,6 @@
             <button class="tablink" data-tab="pedirlente">Circuito de lentes</button>
             <button class="tablink" data-tab="kanban">Tableros</button>
             <button class="tablink" data-tab="whatsapp">WhatsApp</button>
-            <button class="tablink" data-tab="facturar">Facturar</button>
-            <button class="tablink" data-tab="estadisticas">Indicadores</button>
             <button class="tablink" data-tab="administracion">Administración</button></div></div>
 
           <div class="workspace-panel queue-panel">
@@ -86,14 +83,8 @@
             <div class="refine-primary">
               <select id="fCli">
                 <option value="">Todas las clínicas</option>
-                <option>CDU</option>
-                <option>Gualeguaychú</option>
-              </select>
-              <select id="fOS">
-                <option value="">Todas las obras sociales</option>
-                <option>PAMI</option>
-                <option>OSER</option>
-                <option>PARTICULAR</option>
+                <option value="clinica_a">Clínica A</option>
+                <option value="clinica_b">Clínica B</option>
               </select>
               <select id="fEst" hidden>
                 <option value="">Todos los estados</option>
@@ -116,14 +107,12 @@
               <details class="more-menu" id="moreMenu">
                 <summary class="btn">Herramientas ▾</summary>
                 <div class="more-menu-list">
-                  <button class="btn" id="btnConfigurarURL" title="Configurar URL del servidor">⚙ Configurar conector</button>
                   <button class="btn green" id="btnExportarListos">↓ Descargar Excel listos</button>
                   <button class="btn" id="btnExportarDia">📅 Cirugías programadas</button>
                   <button class="btn" id="btnExportarFacturadas">💰 Descargar Excel facturadas</button>
                   <button class="btn" id="btnExportarVista">📄 Descargar Excel vista</button>
                   <button class="btn" id="btnBackup">💾 Backup JSON</button>
                   <button class="btn" id="btnImportar">📥 Importar JSON</button>
-                  <button class="btn" id="btnLentess">🧿 Lentess filtrados</button>
                   <button class="btn" id="toggleKpisBtn">Mostrar/Ocultar KPIs</button>
                   <hr style="border:none;border-top:1px solid #e2e8f0;margin:4px 0">
                   <button class="btn" id="btnReparar" title="Limpiar caché y recargar desde Firestore" style="color:#b45309;border-color:#fcd34d">🔧 Reparar datos</button>
@@ -156,8 +145,6 @@
 
   <div id="exportModal" style="display:none;position:fixed;inset:0;background:#0005;z-index:400;align-items:center;justify-content:center"><div style="background:#fff;border-radius:12px;max-width:700px;width:95%;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">📋 Listos para pedir lente</div><button id="btnCloseExport" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af">✕</button></div><div style="padding:14px 20px;flex:1;overflow-y:auto" id="exportBody"></div><div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="btnCloseExport2">Cerrar</button><button class="btn primary" id="btnCopyExcel">Copiar TSV</button><button class="btn green" id="btnDownloadListos">↓ Descargar Excel</button></div></div></div>
   <div id="stockModal" style="display:none;position:fixed;inset:0;background:#0005;z-index:410;align-items:center;justify-content:center"><div style="background:#fff;border-radius:12px;max-width:760px;width:95%;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">🧪 Inventario de lentes</div><button id="btnCloseStock" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af">✕</button></div><div style="padding:14px 20px;flex:1;overflow-y:auto" id="stockBody"></div><div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="btnCloseStock2">Cerrar</button></div></div></div>
-  <div id="recetasModal" style="display:none;position:fixed;inset:0;background:#0005;z-index:422;align-items:center;justify-content:center"><div style="background:#fff;border-radius:12px;max-width:900px;width:95%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">🧾 PAMI recetas (post envío de documentos)</div><button id="btnCloseRecetas" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af">✕</button></div><div id="recetasBody" style="padding:14px 20px;flex:1;overflow-y:auto"></div><div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="btnCloseRecetas2">Cerrar</button><button class="btn green" id="btnRunRecetas">▶ Ejecutar PAMI recetas</button></div></div></div>
-  <div id="lentessModal" style="display:none;position:fixed;inset:0;background:#0005;z-index:421;align-items:center;justify-content:center"><div style="background:#fff;border-radius:12px;max-width:900px;width:95%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column"><div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:700">🧿 Lentess desde filtros actuales</div><button id="btnCloseLentess" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af">✕</button></div><div id="lentessBody" style="padding:14px 20px;flex:1;overflow-y:auto"></div><div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="btnCloseLentess2">Cerrar</button></div></div></div>
 
   <div class="toast" id="toast"></div>
 
@@ -190,7 +177,5 @@ onAuthStateChanged(auth, async user => { if (!user) { showLogin(''); return; } t
 </script>
 
 <script type="module" src="./js/app.js"></script>
-<script type="module" src="./js/filtro-vitrectomia.js"></script>
-
 </body>
 </html>
