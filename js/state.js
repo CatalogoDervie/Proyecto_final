@@ -54,6 +54,34 @@ export function saveSettings() {
   localStorage.setItem('cirugias_alert_silences', JSON.stringify(ALERT_SILENCES));
 }
 
+const ALERT_SETTING_KEYS = Object.freeze([
+  'second_eye_missing_warn_days', 'second_eye_missing_crit_days',
+  'lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days',
+  'billing_not_done_warn_days', 'billing_not_done_crit_days',
+  'lens_delay_warn_days', 'lens_delay_crit_days'
+]);
+
+export function applyAlertSettings(next = {}) {
+  const clean = {};
+  ALERT_SETTING_KEYS.forEach(key => {
+    const value = Number(next[key]);
+    if (Number.isInteger(value) && value > 0 && value <= 365) clean[key] = value;
+  });
+  const merged = { ...SETTINGS, ...clean };
+  const pairs = [
+    ['second_eye_missing_warn_days', 'second_eye_missing_crit_days'],
+    ['lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days'],
+    ['billing_not_done_warn_days', 'billing_not_done_crit_days'],
+    ['lens_delay_warn_days', 'lens_delay_crit_days']
+  ];
+  if (pairs.some(([warn, crit]) => merged[warn] >= merged[crit])) {
+    throw new Error('Cada umbral amarillo debe ser menor que el rojo.');
+  }
+  Object.assign(SETTINGS, clean);
+  saveSettings();
+  return { ...SETTINGS };
+}
+
 export function silenciarAlerta(key) {
   ALERT_SILENCES[key] = { silencedAt: new Date().toISOString() };
   saveSettings();

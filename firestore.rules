@@ -80,7 +80,8 @@ service cloud.firestore {
     }
     function canReadCirugia() {
       return isActiveSuperadmin() || isSupervisor() || isMedico()
-        || ownClinic(resource.data.clinica);
+        || ownClinic(resource.data.clinica)
+        || (isAdministrativo() && resource.data.estadoCir == 'Programada');
     }
     function canWriteCirugia() {
       return isActiveSuperadmin() || isSupervisor()
@@ -91,6 +92,15 @@ service cloud.firestore {
       return request.resource.data.clinica is string
         && validClinic(request.resource.data.clinica);
     }
+    function canWriteCirugiaById(id) {
+      return isActiveSuperadmin() || isSupervisor()
+        || ownClinic(get(/databases/$(database)/documents/cirugias/$(id)).data.clinica);
+    }
+    function validAuditIdentity(id) {
+      return request.resource.data.pacienteId == id
+        && request.resource.data.usuarioUid == request.auth.uid
+        && request.resource.data.usuarioRol == currentProfile().data.role;
+    }
 
     match /cirugias/{id} {
       allow get, list: if canReadCirugia();
@@ -100,9 +110,70 @@ service cloud.firestore {
       allow delete: if isActiveSuperadmin();
     }
 
+    match /cirugias/{id}/historial/{entryId} {
+      allow read: if isActiveSuperadmin() || isSupervisor();
+      allow create: if canWriteCirugiaById(id) && validAuditIdentity(id);
+      allow update, delete: if false;
+    }
+
+    match /auditoria/{entryId} {
+      allow read: if isActiveSuperadmin() || isSupervisor();
+      allow create: if request.resource.data.pacienteId is string
+        && canWriteCirugiaById(request.resource.data.pacienteId)
+        && validAuditIdentity(request.resource.data.pacienteId);
+      allow update, delete: if false;
+    }
+
+    function validOperationalAlertSettings() {
+      return request.resource.data.keys().hasAll([
+          'second_eye_missing_warn_days', 'second_eye_missing_crit_days',
+          'lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days',
+          'billing_not_done_warn_days', 'billing_not_done_crit_days',
+          'lens_delay_warn_days', 'lens_delay_crit_days',
+          'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'second_eye_missing_warn_days', 'second_eye_missing_crit_days',
+          'lens_arrived_not_scheduled_warn_days', 'lens_arrived_not_scheduled_crit_days',
+          'billing_not_done_warn_days', 'billing_not_done_crit_days',
+          'lens_delay_warn_days', 'lens_delay_crit_days',
+          'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.second_eye_missing_warn_days is int
+        && request.resource.data.second_eye_missing_crit_days is int
+        && request.resource.data.lens_arrived_not_scheduled_warn_days is int
+        && request.resource.data.lens_arrived_not_scheduled_crit_days is int
+        && request.resource.data.billing_not_done_warn_days is int
+        && request.resource.data.billing_not_done_crit_days is int
+        && request.resource.data.lens_delay_warn_days is int
+        && request.resource.data.lens_delay_crit_days is int
+        && request.resource.data.second_eye_missing_warn_days > 0
+        && request.resource.data.second_eye_missing_crit_days <= 365
+        && request.resource.data.second_eye_missing_warn_days < request.resource.data.second_eye_missing_crit_days
+        && request.resource.data.lens_arrived_not_scheduled_warn_days > 0
+        && request.resource.data.lens_arrived_not_scheduled_crit_days <= 365
+        && request.resource.data.lens_arrived_not_scheduled_warn_days < request.resource.data.lens_arrived_not_scheduled_crit_days
+        && request.resource.data.billing_not_done_warn_days > 0
+        && request.resource.data.billing_not_done_crit_days <= 365
+        && request.resource.data.billing_not_done_warn_days < request.resource.data.billing_not_done_crit_days
+        && request.resource.data.lens_delay_warn_days > 0
+        && request.resource.data.lens_delay_crit_days <= 365
+        && request.resource.data.lens_delay_warn_days < request.resource.data.lens_delay_crit_days
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy is string
+        && request.resource.data.updatedBy == request.auth.uid;
+    }
+
+    match /configuracion/alertas_operativas {
+      allow read: if signedIn() && currentProfile().data.active == true;
+      allow create, update: if (isActiveSuperadmin() || isSupervisor())
+        && validOperationalAlertSettings();
+      allow delete: if isActiveSuperadmin();
+    }
+
     match /configuracion/{id} {
       allow read: if signedIn() && currentProfile().data.active == true;
-      allow write: if isActiveSuperadmin();
+      allow write: if id != 'alertas_operativas' && isActiveSuperadmin();
     }
 
     // Las reglas de las demás colecciones se definirán en etapas posteriores.

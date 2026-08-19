@@ -8,8 +8,8 @@ import {
   FIRESTORE_UNSUB, setFirestoreUnsub, APPS_SCRIPT_URL,
   normalizarData, backupDiario
 } from './state.js';
-import { canViewClinic, canEditClinic } from './authz.js';
-function rowsInScope(rows) { return (rows || []).filter(r => canViewClinic(r.clinica)); }
+import { canViewRow, canEditClinic } from './authz.js';
+function rowsInScope(rows) { return (rows || []).filter(canViewRow); }
 // render() is called lazily to avoid circular dependency
 async function render() { const m = await import('./render.js'); m.render(); }
 

@@ -1,70 +1,71 @@
-# Control de Cremas - una página por médica
+# Proyecto Final TIG
 
-Sistema en Google Apps Script + Google Sheets para manejar stock, entregas/ventas, compras, pagos parciales, deudores y anulación con devolución automática al stock.
+Aplicación web académica para gestionar y analizar el circuito de cirugías de cataratas de dos clínicas oftalmológicas ficticias: **Clínica A** y **Clínica B**.
 
-## Estructura recomendada
+## Objetivo
 
-La base de datos no está en GitHub. GitHub guarda el código.
+El proyecto aborda el seguimiento de pedidos de lentes, demoras de recepción, programación quirúrgica, facturación pendiente y continuidad del segundo ojo. La interfaz prioriza cantidades, excepciones operativas y acceso progresivo al detalle.
 
-Cada médica debe tener su propia planilla en Drive:
+## Alcance
+
+- Circuito de cataratas desde el pedido de lente hasta la facturación.
+- Agenda quirúrgica combinada para ambas clínicas.
+- Seguimiento del segundo ojo.
+- Alertas operativas amarillas y rojas calculadas a partir de estados, fechas y umbrales.
+- Indicadores mensuales y acumulados de 2026.
+- Comparación Clínica A / Clínica B / Total.
+
+No incluye integraciones reales con PAMI, recetas, Lentess, facturación externa ni otros sistemas clínicos.
+
+## Roles
+
+- **Administrativo:** opera únicamente los registros de su clínica.
+- **Médico:** consulta un tablero agregado de ambas clínicas y accede a datos personales solo dentro de la agenda quirúrgica.
+- **Supervisor:** controla ambas clínicas, accede al detalle progresivo y configura umbrales operativos.
+- **Superadmin:** conserva el control integral y la administración de usuarios.
+
+## Tecnología
+
+- HTML, CSS y JavaScript ES Modules.
+- Firebase Authentication con correo y contraseña.
+- Cloud Firestore.
+- GitHub Pages.
+- IndexedDB y almacenamiento local aislados para el Proyecto Final.
+
+## Firebase y seguridad
+
+El único proyecto Firebase autorizado es `proyecto-final-tig`. `js/firebase.js` contiene un bloqueo explícito que impide usar `cirugias-we`.
+
+Las reglas de Firestore restringen el acceso por usuario, rol, clínica y estado activo. Los umbrales de `/configuracion/alertas_operativas` pueden ser modificados únicamente por Supervisor y Superadmin.
+
+## Datos
+
+Todos los nombres, DNI, teléfonos, fechas y episodios incluidos en la demo son sintéticos. El repositorio no contiene datos clínicos reales ni debe conectarse con aplicaciones de producción.
+
+## Estructura principal
 
 ```text
-Drive de la médica
-└── Control de Cremas - Dra. Nombre
-    ├── Configuracion
-    ├── Productos
-    ├── Pacientes
-    ├── Pedidos
-    ├── DetallePedidos
-    ├── Compras
-    ├── DetalleCompras
-    ├── Ventas
-    ├── DetalleVentas
-    ├── Pagos
-    ├── MovimientosStock
-    └── Listas
+css/                 estilos de la aplicación
+data/                base demostrativa sintética
+js/                  interfaz, autorización, estado y Firebase
+scripts/             generación y validaciones de la demo
+firestore.rules      reglas de seguridad de Firestore
+firebase.json        configuración local de Firebase
+index.html           entrada de la aplicación
 ```
 
-La página web de esa médica se conecta a su planilla con el valor:
+Algunos campos y módulos heredados permanecen en el código únicamente para compatibilidad con la estructura anterior. Las funciones externas y las referencias exclusivas de vitrectomía no se exponen en la interfaz del Proyecto Final.
 
-```javascript
-const SPREADSHEET_ID = 'ID_DE_LA_PLANILLA';
+## Ejecución local
+
+Al usar módulos ES y Firebase, debe servirse mediante HTTP:
+
+```bash
+python -m http.server 8000
 ```
 
-## Archivos de Apps Script
+Luego abrir `http://localhost:8000/`.
 
-Copiar estos archivos en el proyecto de Apps Script:
+## Advertencia
 
-- `AppsScript/Code.gs`
-- `AppsScript/Index.html`
-- `AppsScript/Style.html`
-- `AppsScript/Script.html`
-- `AppsScript/appsscript.json`
-
-## Instalación por médica
-
-1. Copiar la planilla base en el Drive de la médica.
-2. Abrir la planilla.
-3. Copiar el ID de la URL:
-   `https://docs.google.com/spreadsheets/d/ESTE_ES_EL_ID/edit`
-4. En `AppsScript/Code.gs`, cambiar:
-   `const SPREADSHEET_ID = '...'`
-5. Ejecutar `testConexionPlanilla`.
-6. Ejecutar `inicializarSistema`.
-7. Ir a `Implementar > Nueva implementación`.
-8. Elegir `Aplicación web`.
-9. Ejecutar como: `Yo`.
-10. Acceso: según necesidad.
-11. Guardar la URL de la página de esa médica.
-
-## Regla actual
-
-- Compra base: 15 unidades del mismo producto = 20% de descuento.
-- Anulación de venta: vuelve el stock y queda registro en movimientos.
-- Pago parcial: queda saldo como deuda.
-- Precio compra/reventa: lo que la médica paga al distribuidor.
-- Precio venta sugerido/propio: lo que se vende o sugiere vender al paciente.
-
-## Nota
-
-Este repositorio queda como fuente de código. Las bases reales quedan en Google Sheets para que sean fáciles de revisar, conectar y exportar.
+Este proyecto es una demostración académica. No utiliza datos reales, no ejecuta conectores externos y no debe reutilizar credenciales, configuraciones ni información de la aplicación real.

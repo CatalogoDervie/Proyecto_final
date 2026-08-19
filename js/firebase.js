@@ -34,9 +34,12 @@ function clinicId(value) {
 function profile() { return window.CURRENT_USER?.profile || {}; }
 function role() { return String(profile().role || '').toLowerCase(); }
 function canEditClinic(clinic) { return ['superadmin','supervisor'].includes(role()) || (role() === 'administrativo' && profile().clinica === clinic); }
-function scopedCirugiasRef() {
+function ownClinicCirugiasRef() {
   const c = clinicId(profile().clinica);
   return role() === 'administrativo' && c ? query(cirugiasRef, where('clinica', '==', c)) : cirugiasRef;
+}
+function programmedCirugiasRef() {
+  return query(cirugiasRef, where('estadoCir', '==', 'Programada'));
 }
 function queueLoad() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } }
 function queueSave(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e) { console.warn('[PFC Queue] no se pudo persistir:', e.message); } }
@@ -176,8 +179,31 @@ async function replaceAllRows(rows = []) {
 
 function listenRows(onRows, onErr) {
   if (!_initOk || isBlockedProductionProject || !isExpectedProject) return () => {};
+  if (role() === 'administrativo' && clinicId(profile().clinica)) {
+    let ownRows = [];
+    let programmedRows = [];
+    const emit = () => {
+      const unique = new Map();
+      [...ownRows, ...programmedRows].forEach(row => unique.set(String(row.id), row));
+      onRows([...unique.values()]);
+    };
+    const handleError = onErr || (e => console.error('[Firestore PFC] listener:', e));
+    const unsubOwn = onSnapshot(
+      ownClinicCirugiasRef(),
+      { includeMetadataChanges: false },
+      snap => { ownRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
+      handleError
+    );
+    const unsubProgrammed = onSnapshot(
+      programmedCirugiasRef(),
+      { includeMetadataChanges: false },
+      snap => { programmedRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
+      handleError
+    );
+    return () => { unsubOwn(); unsubProgrammed(); };
+  }
   return onSnapshot(
-    scopedCirugiasRef(),
+    ownClinicCirugiasRef(),
     { includeMetadataChanges: false },
     snap => onRows(snap.docs.map(d => normRow(d.data(), d.id))),
     onErr || (e => console.error('[Firestore PFC] listener:', e))
@@ -186,7 +212,16 @@ function listenRows(onRows, onErr) {
 
 async function exportAllRows() {
   if (!_initOk || isBlockedProductionProject || !isExpectedProject) throw new Error('Firestore DEMO no inicializado');
-  const snap = await getDocs(scopedCirugiasRef());
+  if (role() === 'administrativo' && clinicId(profile().clinica)) {
+    const [ownSnap, programmedSnap] = await Promise.all([
+      getDocs(ownClinicCirugiasRef()),
+      getDocs(programmedCirugiasRef())
+    ]);
+    const unique = new Map();
+    [...ownSnap.docs, ...programmedSnap.docs].forEach(d => unique.set(d.id, normRow(d.data(), d.id)));
+    return [...unique.values()];
+  }
+  const snap = await getDocs(ownClinicCirugiasRef());
   return snap.docs.map(d => normRow(d.data(), d.id));
 }
 
