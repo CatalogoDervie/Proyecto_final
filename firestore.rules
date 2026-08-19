@@ -80,7 +80,8 @@ service cloud.firestore {
     }
     function canReadCirugia() {
       return isActiveSuperadmin() || isSupervisor() || isMedico()
-        || ownClinic(resource.data.clinica);
+        || ownClinic(resource.data.clinica)
+        || (isAdministrativo() && resource.data.estadoCir == 'Programada');
     }
     function canWriteCirugia() {
       return isActiveSuperadmin() || isSupervisor()
@@ -91,6 +92,15 @@ service cloud.firestore {
       return request.resource.data.clinica is string
         && validClinic(request.resource.data.clinica);
     }
+    function canWriteCirugiaById(id) {
+      return isActiveSuperadmin() || isSupervisor()
+        || ownClinic(get(/databases/$(database)/documents/cirugias/$(id)).data.clinica);
+    }
+    function validAuditIdentity(id) {
+      return request.resource.data.pacienteId == id
+        && request.resource.data.usuarioUid == request.auth.uid
+        && request.resource.data.usuarioRol == currentProfile().data.role;
+    }
 
     match /cirugias/{id} {
       allow get, list: if canReadCirugia();
@@ -98,6 +108,20 @@ service cloud.firestore {
         && (isActiveSuperadmin() || isSupervisor() || ownClinic(request.resource.data.clinica));
       allow update: if validCirugia() && canWriteCirugia();
       allow delete: if isActiveSuperadmin();
+    }
+
+    match /cirugias/{id}/historial/{entryId} {
+      allow read: if isActiveSuperadmin() || isSupervisor();
+      allow create: if canWriteCirugiaById(id) && validAuditIdentity(id);
+      allow update, delete: if false;
+    }
+
+    match /auditoria/{entryId} {
+      allow read: if isActiveSuperadmin() || isSupervisor();
+      allow create: if request.resource.data.pacienteId is string
+        && canWriteCirugiaById(request.resource.data.pacienteId)
+        && validAuditIdentity(request.resource.data.pacienteId);
+      allow update, delete: if false;
     }
 
     function validOperationalAlertSettings() {

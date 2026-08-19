@@ -20,6 +20,10 @@ export function isSupervisor() { return isActiveUser() && currentRole() === 'sup
 export function isMedico() { return isActiveUser() && currentRole() === 'medico'; }
 export function isAdministrativo() { return isActiveUser() && currentRole() === 'administrativo'; }
 export function canViewClinic(clinic) { const c = normalizeClinic(clinic); return !!c && (isSuperAdmin() || isSupervisor() || isMedico() || (isAdministrativo() && currentClinic() === c)); }
+export function isSharedProgrammedRow(row) {
+  return isAdministrativo() && String(row?.estadoCir || '').trim().toLowerCase() === 'programada';
+}
+export function canViewRow(row) { return !!row && (canViewClinic(row.clinica) || isSharedProgrammedRow(row)); }
 export function canEditClinic(clinic) { const c = normalizeClinic(clinic); return !!c && (isSuperAdmin() || isSupervisor() || (isAdministrativo() && currentClinic() === c)); }
 export function allowedClinics() { return (isSuperAdmin() || isSupervisor() || isMedico()) ? [CLINICS.A, CLINICS.B] : isAdministrativo() ? [currentClinic()] : []; }
 export function defaultClinic() { return isAdministrativo() ? currentClinic() : CLINICS.A; }
@@ -36,7 +40,8 @@ export function canView(tab = '') {
   if (!isActiveUser()) return false;
   if (tab === 'dashboard') return isMedico() || isSupervisor() || isSuperAdmin();
   if (tab === 'administracion') return canManageUsers();
-  if (['facturar','estadisticas'].includes(tab)) return false;
+  if (tab === 'facturar') return canFacturar();
+  if (tab === 'estadisticas') return false;
   if (['tabla','pedirlente','whatsapp'].includes(tab)) return canFacturar();
   if (tab === 'kanban') return isSupervisor() || isSuperAdmin();
   return false;

@@ -23,7 +23,7 @@ import {
 } from './firebase-ui.js';
 import { probarConexion, connectorStartJob, connectorPollJob, renderJobStatus } from './connector.js';
 import { abrirModalRecetas, cerrarModalRecetas, generarRecetasDesdeModal } from './recetas.js';
-import { canEditPatient, canEditClinic, canViewClinic, canFacturar, canManageUsers, canExport, canViewRowHistory, canDelete, canView, canConfigureOperationalAlerts, defaultClinic, isAdministrativo, isMedico, isSupervisor, currentClinic, clinicLabel } from './authz.js';
+import { canEditPatient, canEditClinic, canViewRow, canFacturar, canManageUsers, canExport, canViewRowHistory, canDelete, canView, canConfigureOperationalAlerts, defaultClinic, isAdministrativo, isMedico, isSupervisor, currentClinic, clinicLabel } from './authz.js';
 import { openRowHistoryModal, closeRowHistoryModal } from './audit.js';
 import { loadAdmisionConfig, ensureAdmisionForPatient, loadLentessEntregas, entregaForClinica } from './admision-config.js';
 
@@ -94,6 +94,7 @@ function initSideDraft(id) { const row = findRow(id); sideDraft = row ? clone(ro
 async function saveSideDraft(id) {
   if (!sideDraft || normalizeId(sideDraft.id) !== normalizeId(id)) return;
   const p = findRow(id); if (!p) return;
+  if (!canEditClinic(p.clinica)) { toast('Este registro pertenece a la otra clínica y es de solo lectura'); return; }
   Object.assign(p, clone(sideDraft));
   validarFila(p);
   await save(p);
@@ -1141,7 +1142,7 @@ window.startOriginalApp = async function () {
     if (cached) {
       const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached;
       if (parsed && Array.isArray(parsed.rows)) {
-        parsed.rows = parsed.rows.filter(r => canViewClinic(r.clinica));
+        parsed.rows = parsed.rows.filter(canViewRow);
         setDB(parsed);
         showSyncBadge('⟳ Cargando desde caché...', 'blue');
       }

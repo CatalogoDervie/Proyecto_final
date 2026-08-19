@@ -14,7 +14,7 @@ import {
   backupDiario
 } from './state.js';
 import { hoyISO, diffDays, toDateOnly } from './utils.js';
-import { canViewRowHistory, allowedClinics, clinicLabel, isAdministrativo, canEditClinic } from './authz.js';
+import { canViewRowHistory, allowedClinics, clinicLabel, isAdministrativo, canViewClinic, canEditClinic } from './authz.js';
 import { getAdmisionOptions } from './admision-config.js';
 
 // ── Columnas de la tabla principal ────────────────────────────────────────
@@ -67,7 +67,11 @@ function refreshAdmisionFilterOptions() {
   const sel = document.getElementById('fCli');
   if (sel) {
     const clinics = allowedClinics();
-    if (isAdministrativo()) {
+    if (isAdministrativo() && quickFilter === WORKFLOW_KEYS.FECHA_PROGRAMADA) {
+      sel.innerHTML = '<option value="">Ambas clínicas</option>';
+      sel.value = '';
+      sel.disabled = true;
+    } else if (isAdministrativo()) {
       sel.innerHTML = clinics.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(clinicLabel(v))}</option>`).join('');
       sel.value = clinics[0] || '';
       sel.disabled = true;
@@ -128,12 +132,25 @@ const QUEUE_RAIL_DEFS = [
   { key: WORKFLOW_KEYS.ALERTAS, icon: '🚨', label: 'Alertas', help: 'Casos urgentes', count: () => DB.rows.filter(p => alertas(p).length).length, compact: true },
 ];
 
+function administrativeQueueCount(key) {
+  if (key === WORKFLOW_KEYS.FECHA_PROGRAMADA) {
+    return DB.rows.filter(row => stateKey(row) === WORKFLOW_KEYS.FECHA_PROGRAMADA).length;
+  }
+  const ownRows = DB.rows.filter(row => canViewClinic(row.clinica));
+  if (key === WORKFLOW_KEYS.TODOS) return ownRows.length;
+  if (key === WORKFLOW_KEYS.ALERTAS) return ownRows.filter(row => alertas(row).length).length;
+  if (key === WORKFLOW_KEYS.FACTURADA) {
+    return ownRows.filter(row => [WORKFLOW_KEYS.FACTURADA, WORKFLOW_KEYS.FINALIZADA].includes(stateKey(row))).length;
+  }
+  return ownRows.filter(row => stateKey(row) === key).length;
+}
+
 export function renderQueueRail() {
   const wrap = document.getElementById('quickFilters');
   if (!wrap) return;
   wrap.innerHTML = QUEUE_RAIL_DEFS.map(item => {
     const active = quickFilter === item.key || (!quickFilter && item.key === 'TODOS');
-    const n = item.count();
+    const n = isAdministrativo() ? administrativeQueueCount(item.key) : item.count();
     return `<button class="qf-btn ${active ? 'active' : ''} ${item.key === 'TODOS' ? 'qf-btn-secondary' : ''} ${item.compact ? 'qf-btn-compact' : ''}" data-qf="${escapeAttr(item.key)}">
       <span class="qf-icon">${escapeHtml(item.icon || '•')}</span>
       <span class="qf-name">${escapeHtml(item.label)}</span>
@@ -156,6 +173,7 @@ export function renderActiveFiltersBar() {
   if (fCli) chips.push(`Clínica: ${fCli}`);
   if (fOS) chips.push(`Obra social: ${fOS}`);
   if (fFechaCir && quickFilter === WORKFLOW_KEYS.FECHA_PROGRAMADA) chips.push(`Fecha programada: ${fFechaCir}`);
+  if (isAdministrativo() && quickFilter === WORKFLOW_KEYS.FECHA_PROGRAMADA) chips.push('Ámbito: Ambas clínicas');
   if (showSilenced) chips.push('Incluye alertas silenciadas');
   if (hideDone) chips.push('Oculta casos cerrados sin acción');
   const base = `<div class="active-filters-summary"><strong>${queueText}</strong> · ${total} paciente(s) visibles</div>`;
@@ -291,7 +309,11 @@ function facBadgeCls(fac) {
 
 export function renderTabla() {
   renderMainTableHeader();
+  const sharedProgrammed = isAdministrativo() && quickFilter === WORKFLOW_KEYS.FECHA_PROGRAMADA;
   const rows = filtered();
+  if (sharedProgrammed) {
+    rows.sort((a, b) => String(a.fechaCir || '').localeCompare(String(b.fechaCir || '')) || String(a.hora || a.hora_cirugia || '').localeCompare(String(b.hora || b.hora_cirugia || '')) || String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }));
+  }
   const dupIds = duplicateNewestIds();
   const tbody = document.getElementById('tbody');
   if (!tbody) return;
@@ -306,7 +328,8 @@ export function renderTabla() {
     if (red) tags.push(`<span class="table-tag">${red} críticas</span>`);
     if (needsAction) tags.push(`<span class="table-tag">${needsAction} con acción</span>`);
     const existing = tablewrap.querySelector('.table-topbar');
-    const html = `<div class="table-topbar"><div><div class="table-topbar-title">${escapeHtml(qLabel)}</div><div class="table-topbar-sub">Bandeja principal para uso diario. Elegí una cola arriba y resolvé desde acá.</div></div><div class="table-topbar-tags">${tags.join('')}</div></div>`;
+    const subtitle = sharedProgrammed ? 'Agenda quirúrgica compartida · Ambas clínicas · Ordenada por fecha y hora.' : 'Bandeja principal para uso diario. Elegí una cola arriba y resolvé desde acá.';
+    const html = `<div class="table-topbar"><div><div class="table-topbar-title">${escapeHtml(qLabel)}</div><div class="table-topbar-sub">${escapeHtml(subtitle)}</div></div><div class="table-topbar-tags">${tags.join('')}</div></div>`;
     if (existing) existing.outerHTML = html; else tablewrap.insertAdjacentHTML('afterbegin', html);
   }
   if (!rows.length) {
@@ -314,6 +337,7 @@ export function renderTabla() {
     return;
   }
   tbody.innerHTML = rows.map((p, i) => {
+    const editable = canEditClinic(p.clinica);
     const e = estado(p);
     const sel = normalizeId(p.id) === normalizeId(selId);
     const dup = dupIds.has(p.id);
@@ -336,7 +360,7 @@ export function renderTabla() {
       estadoActual: `<td data-label="Estado actual"><div class="cell"><span class="badge ${bc(e)}">${escapeHtml(e.length > 34 ? e.substring(0, 32) + '…' : e)}</span></div></td>`,
       proximaAccion: `<td data-label="Próxima acción"><div class="cell"><span class="pa-chip" style="color:${pa.color};background:${pa.bg}">${pa.icon} ${escapeHtml(pa.label)}</span></div></td>`,
       fechaClave: `<td data-label="Fecha clave"><div class="cell"><div class="cell-stack"><div class="cell-main">${escapeHtml(fd(fechaClave) || '—')}</div><div class="cell-sub">${escapeHtml(fechaLabel)}</div></div></div></td>`,
-      acciones: `<td data-label="Acciones"><div class="cell"><div class="row-actions"><button class="btn btn-row-open" data-open-side="${escapeAttr(p.id)}">Editar</button>${historyBtn}</div></div></td>`,
+      acciones: `<td data-label="Acciones"><div class="cell"><div class="row-actions"><button class="btn btn-row-open" data-open-side="${escapeAttr(p.id)}">${editable ? 'Editar' : 'Ver'}</button>${editable ? historyBtn : ''}</div></div></td>`,
     };
     const tds = MAIN_TABLE_COLUMNS.map(c => rowCells[c.key]).join('');
     const hasCritRow = rowAlerts.some(a => a.severity === 'red');
@@ -415,6 +439,7 @@ export function openSide(id) {
   setSelId(id);
   const p = findRow(id);
   if (!p) return;
+  const editable = canEditClinic(p.clinica);
   const e = estado(p);
   const als = alertas(p);
   const sideNameEl = document.getElementById('sideName');
@@ -455,11 +480,11 @@ export function openSide(id) {
         <div class="srow"><label>Dirección</label><input type="text" data-field="dir" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.dir || '')}"></div>
         ${(() => {
           const adm = getAdmisionOptions();
-          const sedes = adm.sedes || [];
+          const sedes = editable ? (adm.sedes || []) : [p.clinica].filter(Boolean);
           const obras = [...new Set([...(adm.obrasPorSede?.[p.clinica || ''] || []), ...(adm.obrasSociales || []), p.obraSocial || ''].filter(Boolean))];
           return `<datalist id="sideClinicasList">${sedes.map(x => `<option value="${escapeAttr(x)}"></option>`).join('')}</datalist><datalist id="sideObrasSocialesList">${obras.map(x => `<option value="${escapeAttr(x)}"></option>`).join('')}</datalist>`;
         })()}
-        <div class="srow"><label>Clínica</label><select data-field="clinica" data-row-id="${escapeAttr(id)}" ${canEditClinic(p.clinica) && !isAdministrativo() ? '' : 'disabled'}>${allowedClinics().map(v => `<option value="${escapeAttr(v)}" ${v === p.clinica ? 'selected' : ''}>${escapeHtml(clinicLabel(v))}</option>`).join('')}</select></div>
+        <div class="srow"><label>Clínica</label><select data-field="clinica" data-row-id="${escapeAttr(id)}" ${editable && !isAdministrativo() ? '' : 'disabled'}>${(editable ? allowedClinics() : [p.clinica]).map(v => `<option value="${escapeAttr(v)}" ${v === p.clinica ? 'selected' : ''}>${escapeHtml(clinicLabel(v))}</option>`).join('')}</select></div>
         <div class="srow"><label>Cobertura</label><input type="text" list="sideObrasSocialesList" data-field="obraSocial" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.obraSocial || '')}" placeholder="Elegir o escribir cobertura"></div>
         <div class="srow"><label>N° Afiliado</label><input type="text" data-field="afiliado" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.afiliado || '')}"></div>
       </div>
@@ -506,6 +531,10 @@ export function openSide(id) {
         <div class="sgroup-title">Notas</div>
         <div class="srow"><textarea rows="2" data-field="notas" data-row-id="${escapeAttr(id)}" style="flex:1;padding:6px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:12px;resize:vertical">${escapeHtml(p.notas || '')}</textarea></div>
       </div>`;
+    if (!editable) {
+      sideBody.querySelectorAll('input, select, textarea, button[data-clear-field]').forEach(control => { control.disabled = true; });
+      sideBody.insertAdjacentHTML('afterbegin', '<div class="val-warning">Solo lectura: esta cirugía programada pertenece a la otra clínica.</div>');
+    }
   }
 
   // Footer con acciones rápidas
@@ -523,7 +552,9 @@ export function openSide(id) {
 
   const sideFoot = document.getElementById('sideFoot');
   if (sideFoot) {
-    sideFoot.innerHTML = `
+    sideFoot.innerHTML = !editable
+      ? '<div class="val-warning">Podés consultar esta cirugía por tratarse de una agenda compartida, pero no modificarla.</div>'
+      : `
       ${validaciones.map(v => `<div class="val-${v.level}">${v.msg}</div>`).join('')}
       ${qaButtons.length ? `<div class="quick-actions-bar">${qaButtons.join('')}</div>` : ''}
       <div style="padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
