@@ -456,11 +456,11 @@ export function openSide(id) {
         ${(() => {
           const adm = getAdmisionOptions();
           const sedes = adm.sedes || [];
-          const obras = [...new Set([...(adm.obrasPorSede?.[p.clinica || ''] || []), ...(adm.obrasSociales || []), p.obraSocial || '', 'PAMI'].filter(Boolean))];
+          const obras = [...new Set([...(adm.obrasPorSede?.[p.clinica || ''] || []), ...(adm.obrasSociales || []), p.obraSocial || ''].filter(Boolean))];
           return `<datalist id="sideClinicasList">${sedes.map(x => `<option value="${escapeAttr(x)}"></option>`).join('')}</datalist><datalist id="sideObrasSocialesList">${obras.map(x => `<option value="${escapeAttr(x)}"></option>`).join('')}</datalist>`;
         })()}
         <div class="srow"><label>Clínica</label><select data-field="clinica" data-row-id="${escapeAttr(id)}" ${canEditClinic(p.clinica) && !isAdministrativo() ? '' : 'disabled'}>${allowedClinics().map(v => `<option value="${escapeAttr(v)}" ${v === p.clinica ? 'selected' : ''}>${escapeHtml(clinicLabel(v))}</option>`).join('')}</select></div>
-        <div class="srow"><label>Obra Social</label><input type="text" list="sideObrasSocialesList" data-field="obraSocial" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.obraSocial || 'PAMI')}" placeholder="Elegir o escribir nueva obra social"></div>
+        <div class="srow"><label>Cobertura</label><input type="text" list="sideObrasSocialesList" data-field="obraSocial" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.obraSocial || '')}" placeholder="Elegir o escribir cobertura"></div>
         <div class="srow"><label>N° Afiliado</label><input type="text" data-field="afiliado" data-row-id="${escapeAttr(id)}" value="${escapeAttr(p.afiliado || '')}"></div>
       </div>
       <div class="sgroup">
@@ -500,7 +500,6 @@ export function openSide(id) {
         <div class="srow"><label>Prácticas adicionales</label><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px">
           <label><input type="checkbox" data-field="extraSutura" data-row-id="${escapeAttr(id)}" ${p.extraSutura ? 'checked' : ''}> Sutura</label>
           <label><input type="checkbox" data-field="extraInyeccion" data-row-id="${escapeAttr(id)}" ${p.extraInyeccion ? 'checked' : ''}> Inyección</label>
-          <label><input type="checkbox" data-field="extraVitrectomia" data-row-id="${escapeAttr(id)}" ${p.extraVitrectomia ? 'checked' : ''}> Vitrectomía</label>
         </div></div>
       </div>
       <div class="sgroup">
