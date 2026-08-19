@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { programadaHastaDia } from '../js/workflow-programada.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'data', 'demo-cirugias.json');
@@ -269,6 +270,10 @@ function assignPeople(args, pools, rnd) {
       });
     });
   });
+  episodes.forEach(row => {
+    const programmedUntil = programadaHastaDia(row, args.fechaDemo);
+    if (programmedUntil) row.programadaHastaDia = programmedUntil;
+  });
   return { episodes, groups };
 }
 
@@ -355,6 +360,8 @@ function validateDataset(episodes, groups, plan, args) {
     if (row.fechaCir) check(row.fechaLlegaLente && row.fechaLlegaLente <= row.fechaCir, `${row.id}: cirugía anterior a llegada`);
     if (row.estadoCir === 'Realizada') check(row.fechaCir <= args.fechaDemo, `${row.id}: realizada futura`);
     if (row.estadoFac === 'FACTURADA') check(row.fechaFacturada >= row.fechaCir && row.fechaFacturada <= args.fechaDemo, `${row.id}: facturación incoherente`);
+    const expectedProgrammedUntil = programadaHastaDia(row, args.fechaDemo);
+    check((row.programadaHastaDia || null) === expectedProgrammedUntil, `${row.id}: proyección programadaHastaDia inconsistente`);
   });
   for (const [personId, rows] of byPerson) {
     check(rows.length <= 2, `${personId}: más de dos episodios`);

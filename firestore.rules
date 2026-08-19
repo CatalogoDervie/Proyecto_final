@@ -78,10 +78,18 @@ service cloud.firestore {
         && currentProfile().data.clinica == clinica
         && validClinic(clinica);
     }
+    function argentinaTodayKey() {
+      let localNow = request.time - duration.value(3, 'h');
+      return localNow.year() * 10000 + localNow.month() * 100 + localNow.day();
+    }
     function canReadCirugia() {
       return isActiveSuperadmin() || isSupervisor() || isMedico()
         || ownClinic(resource.data.clinica)
-        || (isAdministrativo() && resource.data.estadoCir == 'Programada');
+        || (
+          isAdministrativo()
+          && resource.data.programadaHastaDia is int
+          && resource.data.programadaHastaDia > argentinaTodayKey()
+        );
     }
     function canWriteCirugia() {
       return isActiveSuperadmin() || isSupervisor()
@@ -90,7 +98,25 @@ service cloud.firestore {
     }
     function validCirugia() {
       return request.resource.data.clinica is string
-        && validClinic(request.resource.data.clinica);
+        && validClinic(request.resource.data.clinica)
+        && request.resource.data.estadoCir in ['', 'Programada', 'Realizada']
+        && request.resource.data.estadoFac in ['', 'FACTURADA', 'FINALIZADA']
+        && (
+          !request.resource.data.keys().hasAll(['programadaHastaDia'])
+          || request.resource.data.programadaHastaDia == null
+          || (
+            request.resource.data.programadaHastaDia is int
+            && request.resource.data.programadaHastaDia > argentinaTodayKey()
+            && request.resource.data.fechaCir is string
+            && request.resource.data.fechaCir != ''
+            && request.resource.data.fechaSolLente is string
+            && request.resource.data.fechaSolLente != ''
+            && request.resource.data.fechaLlegaLente is string
+            && request.resource.data.fechaLlegaLente != ''
+            && request.resource.data.estadoCir != 'Realizada'
+            && !(request.resource.data.estadoFac in ['FACTURADA', 'FINALIZADA'])
+          )
+        );
     }
     function canWriteCirugiaById(id) {
       return isActiveSuperadmin() || isSupervisor()

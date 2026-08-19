@@ -24,7 +24,7 @@ function parseConfig() {
   return { projectId, apiKey };
 }
 
-function toFirestoreValue(value) {
+function toFirestoreValue(value, key = '') {
   if (value === null) return { nullValue: null };
   if (typeof value === 'boolean') return { booleanValue: value };
   if (typeof value === 'number') {
@@ -32,7 +32,7 @@ function toFirestoreValue(value) {
   }
   if (Array.isArray(value)) return { arrayValue: { values: value.map(toFirestoreValue) } };
   if (typeof value === 'object') {
-    return { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toFirestoreValue(v)])) } };
+    return { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toFirestoreValue(v, k)])) } };
   }
   return { stringValue: String(value) };
 }
@@ -42,6 +42,7 @@ function fromFirestoreValue(value) {
   if ('booleanValue' in value) return value.booleanValue;
   if ('integerValue' in value) return Number(value.integerValue);
   if ('doubleValue' in value) return value.doubleValue;
+  if ('timestampValue' in value) return new Date(value.timestampValue).toISOString();
   if ('nullValue' in value) return null;
   if ('arrayValue' in value) return (value.arrayValue.values || []).map(fromFirestoreValue);
   if ('mapValue' in value) return Object.fromEntries(Object.entries(value.mapValue.fields || {}).map(([k, v]) => [k, fromFirestoreValue(v)]));
@@ -49,7 +50,7 @@ function fromFirestoreValue(value) {
 }
 
 function fieldsFor(row) {
-  return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, toFirestoreValue(value)]));
+  return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, toFirestoreValue(value, key)]));
 }
 
 async function jsonFetch(url, options = {}) {

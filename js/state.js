@@ -3,6 +3,7 @@
 'use strict';
 
 import { hoyISO, toDateOnly, diffDays, parseDateOnly } from './utils.js';
+import { argentinaDateISO, isFechaProgramadaWorkflow } from './workflow-programada.js';
 
 // ── Estado principal ──────────────────────────────────────────────────────
 export let DB = { rows: [], nid: 200 };
@@ -239,10 +240,10 @@ export function isFacturadoCompleto(fac) {
   return f === 'FACTURADA' || f === 'FINALIZADA';
 }
 
-export function getEstadoCirCalculado(p) {
+export function getEstadoCirCalculado(p, referenceDate = argentinaDateISO()) {
   const manual = normText(p.estadoCir);
   const fc = toDateOnly(p.fechaCir);
-  const today = toDateOnly(hoyISO());
+  const today = toDateOnly(referenceDate);
   if (isFacturadoCompleto(p.estadoFac)) return 'Realizada';
   if (!fc) return '';
   if (manual === 'REALIZADA') return 'Realizada';
@@ -332,8 +333,8 @@ export function getFechaFacturadaBase(p) {
 }
 
 // ── Estado calculado del paciente ─────────────────────────────────────────
-export function stateKey(p) {
-  const estCir = getEstadoCirCalculado(p);
+export function stateKey(p, referenceDate = argentinaDateISO()) {
+  const estCir = getEstadoCirCalculado(p, referenceDate);
   const tieneSol = hasValidDate(p.fechaSolLente);
   const tieneLlego = hasValidDate(p.fechaLlegaLente);
   const tieneCir = hasValidDate(p.fechaCir);
@@ -353,8 +354,9 @@ export function stateKey(p) {
     return WORKFLOW_KEYS.FACTURADA;
   }
 
+  if (isFechaProgramadaWorkflow(p, referenceDate)) return WORKFLOW_KEYS.FECHA_PROGRAMADA;
   if (estCir === 'Realizada') return WORKFLOW_KEYS.REALIZADA_FALTA_FACTURAR;
-  return WORKFLOW_KEYS.FECHA_PROGRAMADA;
+  return WORKFLOW_KEYS.LLEGO_LENTE_PROGRAMAR;
 }
 
 export function estado(p) { return stateLabelFromKey(stateKey(p), p); }

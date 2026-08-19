@@ -1,5 +1,7 @@
 'use strict';
 
+import { isSharedProgrammedProjection } from './workflow-programada.js';
+
 // Autorización centralizada: nunca se decide por email, solo por perfil validado.
 export const CLINICS = Object.freeze({ A: 'clinica_a', B: 'clinica_b' });
 const ROLES = new Set(['superadmin', 'supervisor', 'medico', 'administrativo']);
@@ -20,10 +22,10 @@ export function isSupervisor() { return isActiveUser() && currentRole() === 'sup
 export function isMedico() { return isActiveUser() && currentRole() === 'medico'; }
 export function isAdministrativo() { return isActiveUser() && currentRole() === 'administrativo'; }
 export function canViewClinic(clinic) { const c = normalizeClinic(clinic); return !!c && (isSuperAdmin() || isSupervisor() || isMedico() || (isAdministrativo() && currentClinic() === c)); }
-export function isSharedProgrammedRow(row) {
-  return isAdministrativo() && String(row?.estadoCir || '').trim().toLowerCase() === 'programada';
+export function isSharedProgrammedRow(row, now = new Date()) {
+  return isAdministrativo() && isSharedProgrammedProjection(row, now);
 }
-export function canViewRow(row) { return !!row && (canViewClinic(row.clinica) || isSharedProgrammedRow(row)); }
+export function canViewRow(row, now = new Date()) { return !!row && (canViewClinic(row.clinica) || isSharedProgrammedRow(row, now)); }
 export function canEditClinic(clinic) { const c = normalizeClinic(clinic); return !!c && (isSuperAdmin() || isSupervisor() || (isAdministrativo() && currentClinic() === c)); }
 export function allowedClinics() { return (isSuperAdmin() || isSupervisor() || isMedico()) ? [CLINICS.A, CLINICS.B] : isAdministrativo() ? [currentClinic()] : []; }
 export function defaultClinic() { return isAdministrativo() ? currentClinic() : CLINICS.A; }

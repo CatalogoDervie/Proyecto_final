@@ -40,6 +40,19 @@ Al reemplazar una versión anterior, primero se escriben y verifican los nuevos 
 
 No utiliza archivos de cuenta de servicio ni guarda credenciales.
 
+## Migración técnica de programadas compartidas
+
+`programadaHastaDia` es una proyección técnica entera de la fecha quirúrgica: contiene el día siguiente como `AAAAMMDD` en horario argentino y permite que consulta y reglas de Firestore retiren automáticamente una cirugía de la vista compartida cuando vence. No reemplaza ni altera `fechaCir`.
+
+La migración es acotada y actualiza solamente ese campo en las 17 cirugías actualmente programadas. Sin `APPLY_PROGRAMMED_MIGRATION=1` funciona en modo diagnóstico.
+
+```bash
+DEMO_EMAIL='superadmin@clinicaoftalmologica.test' \
+DEMO_PASSWORD='definir-en-la-terminal' \
+APPLY_PROGRAMMED_MIGRATION=1 \
+node scripts/migrar-programadas-compartidas.mjs
+```
+
 ## Verificar permisos
 
 Después de cargar, el siguiente comando inicia sesión con las cinco cuentas y prueba lecturas y escrituras directas contra Firestore:
