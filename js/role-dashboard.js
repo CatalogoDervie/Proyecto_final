@@ -135,7 +135,7 @@ function renderMedico() {
   const billed = billedRows();
   return `${header('Panorama quirúrgico', `${billed.length} cirugías facturadas en ${periodLabel().toLowerCase()} y ${by(WORKFLOW_KEYS.FECHA_PROGRAMADA).length} actualmente programadas.`)}${filtersHtml()}
     <section class="rd-kpis">${metricCard('Programadas',by(WORKFLOW_KEYS.FECHA_PROGRAMADA),'')}${metricCard('Esperando lente',by(WORKFLOW_KEYS.ESPERANDO_LENTE),'')}${metricCard('Lente recibida',by(WORKFLOW_KEYS.LLEGO_LENTE_PROGRAMAR),'')}${metricCard('Realizadas sin facturar',by(WORKFLOW_KEYS.REALIZADA_FALTA_FACTURAR),'warn')}${metricCard(`Facturadas · ${periodLabel()}`,billed,'good')}${metricCard('Demoras críticas',critical,'critical','Excepciones operativas')}</section>
-    <div class="rd-grid two">${flowPanel()}${ytdPanel()}</div>${agendaPanel()}<div class="rd-grid history-grid">${historyChart()}</div>`;
+    <div class="rd-grid two">${flowPanel()}${ytdPanel()}</div>${agendaPanel()}<div class="rd-grid two">${historyChart()}${secondEyeSummaryPanel()}</div>`;
 }
 function alertUniverses() {
   const scoped = scopedRows();
@@ -167,6 +167,13 @@ function secondEyePanel() {
   const block=(key,label)=>`<details class="rd-second-group" ${key==='red'&&groups[key].length?'open':''}><summary><span class="rd-dot ${key}"></span>${label}<strong>${groups[key].length}</strong></summary><div class="rd-table-wrap"><table><thead><tr><th>Paciente</th><th>Clínica</th><th>Ojo operado</th><th>Demora</th><th>Fecha base</th></tr></thead><tbody>${groups[key].map(({row,alert})=>`<tr><td>${escapeHtml(row.nombre||'—')}</td><td>${escapeHtml(clinicLabel(row.clinica))}</td><td>${escapeHtml(row.ojo||'—')}</td><td>${alert?`${alert.days} días`:'Dentro de plazo'}</td><td>${escapeHtml((factDate(row)||iso(row.fechaCir)||'—').split('-').reverse().join('/'))}</td></tr>`).join('')||'<tr><td colspan="5">Sin casos</td></tr>'}</tbody></table></div></details>`;
   return `<section class="rd-panel"><div class="rd-section-head"><div><h2>Segundo ojo</h2><p>Ordenado por mayor demora; detalle progresivo por severidad.</p></div><strong>${rows.length} pendientes</strong></div>${block('red','Atención inmediata')}${block('yellow','Seguimiento')}${block('recent','Recientes, dentro de plazo')}</section>`;
 }
+function secondEyeSummaryPanel() {
+  const rows=scopedRows().filter(r=>stateKey(r)===WORKFLOW_KEYS.FACTURADA_FALTA_OTRO_OJO);
+  const red=rows.filter(r=>alertas(r,{raw:true}).some(a=>a.type==='second_surgery_missing'&&a.severity==='red')).length;
+  const yellow=rows.filter(r=>alertas(r,{raw:true}).some(a=>a.type==='second_surgery_missing'&&a.severity==='yellow')).length;
+  const recent=Math.max(0,rows.length-red-yellow);
+  return `<section class="rd-panel"><div class="rd-section-head"><div><h2>Seguimiento del segundo ojo</h2><p>Resumen agregado, sin exponer listados generales de pacientes.</p></div><strong>${rows.length} pendientes</strong></div><div class="rd-second-summary"><div><span class="rd-dot recent"></span><strong>${recent}</strong><small>Recientes</small></div><div><span class="rd-dot yellow"></span><strong>${yellow}</strong><small>Seguimiento</small></div><div><span class="rd-dot red"></span><strong>${red}</strong><small>Atención inmediata</small></div></div></section>`;
+}
 function settingsPanel() {
   if (!canConfigureOperationalAlerts()) return '';
   return `<details class="rd-panel rd-settings" id="rdSettings"><summary><div><h2>Umbrales de alertas operativas</h2><p>Configuración interna; no representa normativa de PAMI.</p></div><span>Configurar</span></summary><form id="rdSettingsForm"><div class="rd-settings-grid">${SETTINGS_FIELDS.map(([,label,warn,crit])=>`<fieldset><legend>${escapeHtml(label)}</legend><label>Amarilla desde<input type="number" min="1" max="364" name="${escapeAttr(warn)}" value="${SETTINGS[warn]}"> días</label><label>Roja desde<input type="number" min="2" max="365" name="${escapeAttr(crit)}" value="${SETTINGS[crit]}"> días</label></fieldset>`).join('')}</div><div class="rd-form-actions"><span id="rdSettingsStatus"></span><button class="btn primary" type="submit">Guardar umbrales</button></div></form></details>`;
@@ -179,7 +186,7 @@ function renderSupervisor() {
   const billed=billedRows();
   return `${header('Control operativo', `${red.length} casos críticos y ${yellow.length} en seguimiento. ${billed.length} cirugías facturadas en ${periodLabel().toLowerCase()}.`)}${filtersHtml()}
   <section class="rd-kpis supervisor">${metricCard('Alertas rojas',red,'critical')}${metricCard('Alertas amarillas',yellow,'warn')}${metricCard('Esperando lente',by(WORKFLOW_KEYS.ESPERANDO_LENTE))}${metricCard('Lente recibida sin programar',by(WORKFLOW_KEYS.LLEGO_LENTE_PROGRAMAR))}${metricCard('Programadas',by(WORKFLOW_KEYS.FECHA_PROGRAMADA))}${metricCard('Realizadas sin facturar',by(WORKFLOW_KEYS.REALIZADA_FALTA_FACTURAR),'warn')}${metricCard('Segundo ojo pendiente',by(WORKFLOW_KEYS.FACTURADA_FALTA_OTRO_OJO))}${metricCard(`Facturadas · ${periodLabel()}`,billed,'good')}</section>
-  <div class="rd-grid two">${exceptionPanel()}${ytdPanel()}</div><div class="rd-grid two">${clinicComparison()}${historyChart()}</div>${secondEyePanel()}${settingsPanel()}`;
+  <div class="rd-grid two">${exceptionPanel()}${ytdPanel()}</div><div class="rd-grid two">${clinicComparison()}${historyChart()}</div><div class="rd-grid two">${flowPanel()}${secondEyePanel()}</div>${agendaPanel()}${settingsPanel()}`;
 }
 async function loadConfig() {
   if (configLoaded || !window.firestoreConnector) return;
