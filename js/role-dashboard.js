@@ -84,10 +84,14 @@ function ytdRows() {
 }
 function monthlySeries() {
   const f = ensureFilters();
-  return MONTHS.map((label, i) => {
+  const demoDate = effectiveDate();
+  const demoYear = Number(demoDate.slice(0, 4));
+  const demoMonth = Number(demoDate.slice(5, 7));
+  const visibleMonths = f.year < demoYear ? 12 : f.year === demoYear ? demoMonth : 0;
+  return MONTHS.slice(0, visibleMonths).map((label, i) => {
     const prefix = `${f.year}-${String(i + 1).padStart(2,'0')}`;
     const rows = scopedRows().filter(r => factDate(r).startsWith(prefix));
-    return { label: label.slice(0,3), ...countByClinic(rows) };
+    return { label: label.slice(0,3), month: i + 1, isCurrent: f.year === demoYear && i + 1 === demoMonth, ...countByClinic(rows) };
   });
 }
 function previousPeriodRows() {
@@ -104,10 +108,19 @@ function previousPeriodRows() {
   });
 }
 function historyChart() {
+  const f = ensureFilters();
+  const demoDate = effectiveDate();
   const series = monthlySeries();
   const max = Math.max(1, ...series.map(v => v.total));
   const current = billedRows().length, previous = previousPeriodRows().length, delta = current - previous;
-  return `<section class="rd-panel rd-history"><div class="rd-section-head"><div><h2>Cirugías facturadas por mes</h2><p>Evolución mensual con comparación directa entre clínicas.</p></div><strong>${current} · ${delta >= 0 ? '+' : ''}${delta} vs período anterior</strong></div><div class="rd-bars">${series.map((v, i) => `<div class="rd-bar-col" title="${MONTHS[i]}: ${v.total} · Clínica A ${v.a} · Clínica B ${v.b}"><span>${v.total || ''}</span><div class="rd-bar" style="height:${Math.max(v.total ? 8 : 1, (v.total/max)*150)}px"><i style="height:${v.total ? (v.a/v.total)*100 : 0}%"></i></div><small>${v.label}</small></div>`).join('')}</div><div class="rd-legend"><span><i class="a"></i>Clínica A</span><span><i class="b"></i>Clínica B</span></div></section>`;
+  const currentMonth = f.mode === 'month' && `${f.year}-${String(f.month).padStart(2,'0')}` === demoDate.slice(0,7);
+  const comparison = currentMonth
+    ? `${current} al ${demoDate.slice(8,10)}/${demoDate.slice(5,7)} · ${previous} en el mes anterior`
+    : `${current} · ${delta >= 0 ? '+' : ''}${delta} vs período anterior`;
+  const currentNote = series.some(v => v.isCurrent)
+    ? `<div class="rd-chart-note">* ${MONTHS[Number(demoDate.slice(5,7)) - 1]} es el mes en curso, con datos al ${demoDate.split('-').reverse().join('/')}.</div>`
+    : '';
+  return `<section class="rd-panel rd-history"><div class="rd-section-head"><div><h2>Cirugías facturadas por mes</h2><p>Evolución mensual con comparación directa entre clínicas.</p></div><strong>${comparison}</strong></div><div class="rd-bars">${series.map(v => `<div class="rd-bar-col" title="${MONTHS[v.month - 1]}: ${v.total} · Clínica A ${v.a} · Clínica B ${v.b}"><span>${v.total || ''}</span><div class="rd-bar" style="height:${Math.max(v.total ? 8 : 1, (v.total/max)*150)}px"><i style="height:${v.total ? (v.a/v.total)*100 : 0}%"></i></div><small>${v.label}${v.isCurrent ? '*' : ''}</small></div>`).join('')}</div><div class="rd-legend"><span><i class="a"></i>Clínica A</span><span><i class="b"></i>Clínica B</span></div>${currentNote}</section>`;
 }
 function ytdPanel() {
   const n = countByClinic(ytdRows());
@@ -125,7 +138,7 @@ function agendaPanel() {
   const rows = scopedRows().filter(r => stateKey(r) === WORKFLOW_KEYS.FECHA_PROGRAMADA && iso(r.fechaCir) >= today).sort((a,b) => `${iso(a.fechaCir)} ${a.hora||''}`.localeCompare(`${iso(b.fechaCir)} ${b.hora||''}`));
   const groups = new Map();
   rows.forEach(r => { const d=iso(r.fechaCir); if(!groups.has(d)) groups.set(d,[]); groups.get(d).push(r); });
-  const content = [...groups].slice(0,8).map(([date, items], idx) => { const n=countByClinic(items); return `<details class="rd-agenda-day" ${idx===0?'open':''}><summary><span>${date.split('-').reverse().join('/')}</span><strong>${items.length} cirugías</strong><small>A ${n.a} · B ${n.b}</small></summary><div class="rd-table-wrap"><table><thead><tr><th>Hora</th><th>Paciente</th><th>DNI</th><th>Teléfono</th><th>Clínica</th><th>Ojo</th><th>Dioptría / lente</th></tr></thead><tbody>${items.map(r => `<tr><td>${escapeHtml(r.hora||'—')}</td><td>${escapeHtml(r.nombre||'—')}</td><td>${escapeHtml(r.dni||'—')}</td><td>${escapeHtml(r.tel||'—')}</td><td>${escapeHtml(clinicLabel(r.clinica))}</td><td>${escapeHtml(r.ojo||'—')}</td><td>${escapeHtml([r.dioptria,r.model||r.lio||r.modeloLente].filter(Boolean).join(' · ')||'—')}</td></tr>`).join('')}</tbody></table></div></details>`; }).join('');
+  const content = [...groups].slice(0,8).map(([date, items]) => { const n=countByClinic(items); return `<details class="rd-agenda-day"><summary><span>${date.split('-').reverse().join('/')}</span><strong>${items.length} cirugías</strong><small>A ${n.a} · B ${n.b}</small></summary><div class="rd-table-wrap"><table><thead><tr><th>Hora</th><th>Paciente</th><th>DNI</th><th>Teléfono</th><th>Clínica</th><th>Ojo</th><th>Dioptría / lente</th></tr></thead><tbody>${items.map(r => `<tr><td>${escapeHtml(r.hora||'—')}</td><td>${escapeHtml(r.nombre||'—')}</td><td>${escapeHtml(r.dni||'—')}</td><td>${escapeHtml(r.tel||'—')}</td><td>${escapeHtml(clinicLabel(r.clinica))}</td><td>${escapeHtml(r.ojo||'—')}</td><td>${escapeHtml([r.dioptria,r.model||r.lio||r.modeloLente].filter(Boolean).join(' · ')||'—')}</td></tr>`).join('')}</tbody></table></div></details>`; }).join('');
   return `<section class="rd-panel rd-agenda"><div class="rd-section-head"><div><h2>Agenda quirúrgica combinada</h2><p>Próximas fechas. Abrí un día para ver únicamente los datos necesarios para la atención.</p></div><strong>${rows.length} próximas</strong></div>${content || '<div class="rd-empty">No hay cirugías programadas próximas con estos filtros.</div>'}</section>`;
 }
 function renderMedico() {
