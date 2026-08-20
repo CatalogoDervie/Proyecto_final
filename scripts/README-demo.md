@@ -42,7 +42,9 @@ No utiliza archivos de cuenta de servicio ni guarda credenciales.
 
 ## Migración técnica de programadas compartidas
 
-`programadaHastaDia` es una proyección técnica entera de la fecha quirúrgica: contiene el día siguiente como `AAAAMMDD` en horario argentino y permite que consulta y reglas de Firestore retiren automáticamente una cirugía de la vista compartida cuando vence. No reemplaza ni altera `fechaCir`.
+`programadaHastaDia` es una proyección técnica entera de la fecha quirúrgica: contiene el día siguiente como `AAAAMMDD` en horario argentino y permite que las reglas de Firestore retiren automáticamente una cirugía de la vista compartida cuando vence. No reemplaza ni altera `fechaCir`.
+
+Para las lecturas compartidas, el cliente no utiliza una desigualdad calculada localmente: Firestore no puede demostrar que ese límite equivale al día obtenido por las reglas desde `request.time`. En su lugar, abre consultas `IN` en lotes de hasta 30 claves futuras. Cada valor es verificable por las reglas contra el reloj del servidor. La ventana cubre 366 días y se reconstruye al comenzar un nuevo día en Argentina.
 
 La migración es acotada y actualiza solamente ese campo en las 17 cirugías actualmente programadas. Sin `APPLY_PROGRAMMED_MIGRATION=1` funciona en modo diagnóstico.
 
@@ -52,6 +54,15 @@ DEMO_PASSWORD='definir-en-la-terminal' \
 APPLY_PROGRAMMED_MIGRATION=1 \
 node scripts/migrar-programadas-compartidas.mjs
 ```
+
+La compatibilidad real entre las consultas y las reglas puede verificarse sin escribir documentos:
+
+```bash
+DEMO_PASSWORD='definir-en-la-terminal' \
+node scripts/diagnosticar-query-programadas-real.mjs
+```
+
+La prueba autentica a ambos administrativos, compara la consulta de clínica propia, la consulta de rango anterior y los lotes `IN` corregidos. También confirma mediante lecturas directas que una programada ajena es visible y que una fila no programada ajena continúa denegada.
 
 ## Verificar permisos
 

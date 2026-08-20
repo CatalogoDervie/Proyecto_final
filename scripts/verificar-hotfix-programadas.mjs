@@ -3,7 +3,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isFechaProgramadaWorkflow, programadaHastaDia } from '../js/workflow-programada.js';
+import {
+  isFechaProgramadaWorkflow,
+  programadaHastaDia,
+  programmedQueryDayBatches
+} from '../js/workflow-programada.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const payload = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'demo-cirugias.json'), 'utf8'));
@@ -40,7 +44,16 @@ assert(rows.filter(row => row.estadoCir === 'Programada').length === 0, 'el diag
 assert(rulesSource.includes('resource.data.programadaHastaDia > argentinaTodayKey()'), 'Firestore Rules no usa la vigencia diaria canónica');
 assert(!rulesSource.includes("resource.data.estadoCir == 'Programada'"), 'Firestore Rules conserva la condición textual defectuosa');
 assert(!rulesSource.includes('allow read, write: if true'), 'Firestore Rules contiene acceso abierto');
-assert(firebaseSource.includes("where(PROGRAMMED_UNTIL_FIELD, '>', argentinaDayKey())"), 'la consulta Firestore no usa la misma vigencia diaria');
+assert(rulesSource.includes('ownClinic(resource.data.clinica)'), 'Firestore Rules no limita la escritura administrativa a la clínica propia');
+assert(rulesSource.includes('request.resource.data.clinica == resource.data.clinica'), 'Firestore Rules permite cambiar la clínica durante una escritura');
+assert(!firebaseSource.includes("where(PROGRAMMED_UNTIL_FIELD, '>', argentinaDayKey())"), 'regresión: volvió la consulta de rango incompatible con request.time');
+assert(firebaseSource.includes("where(PROGRAMMED_UNTIL_FIELD, 'in', dayKeys)"), 'la consulta Firestore no usa lotes de días futuros demostrables por Rules');
+const queryDayBatches = programmedQueryDayBatches(referenceNow);
+const queryDayKeys = queryDayBatches.flat();
+assert(queryDayBatches.length === 13, `se esperaban 13 lotes y hay ${queryDayBatches.length}`);
+assert(queryDayBatches.every(batch => batch.length > 0 && batch.length <= 30), 'un lote excede el máximo de 30 valores IN');
+assert(queryDayKeys.length === 366 && new Set(queryDayKeys).size === 366, 'el horizonte de consulta no contiene 366 días únicos');
+assert(programmed.every(row => queryDayKeys.includes(row.programadaHastaDia)), 'las 17 programadas no están cubiertas por los lotes de consulta');
 
 const transitionSample = programmed[0];
 const surgeryDayNoonUtc = new Date(`${transitionSample.fechaCir}T15:00:00.000Z`);

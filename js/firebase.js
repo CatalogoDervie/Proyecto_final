@@ -13,9 +13,9 @@ import {
 import { CLIENT_CONFIG } from './cliente-config.js';
 import {
   PROGRAMMED_UNTIL_FIELD,
-  argentinaDayKey,
   millisecondsUntilNextArgentinaDay,
-  programadaHastaDia
+  programadaHastaDia,
+  programmedQueryDayBatches
 } from './workflow-programada.js';
 
 const firebaseConfig = CLIENT_CONFIG.firebase;
@@ -44,8 +44,13 @@ function ownClinicCirugiasRef() {
   const c = clinicId(profile().clinica);
   return role() === 'administrativo' && c ? query(cirugiasRef, where('clinica', '==', c)) : cirugiasRef;
 }
-function programmedCirugiasRef() {
-  return query(cirugiasRef, where(PROGRAMMED_UNTIL_FIELD, '>', argentinaDayKey()));
+function programmedCirugiasRefs(now = new Date()) {
+  // Firestore Rules no puede demostrar que un límite de rango calculado por el
+  // cliente equivale al día derivado de request.time. En cambio, cada valor de
+  // una consulta IN es evaluable contra la regla dinámica del servidor.
+  return programmedQueryDayBatches(now).map(dayKeys =>
+    query(cirugiasRef, where(PROGRAMMED_UNTIL_FIELD, 'in', dayKeys))
+  );
 }
 function queueLoad() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } }
 function queueSave(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e) { console.warn('[PFC Queue] no se pudo persistir:', e.message); } }
@@ -188,9 +193,10 @@ function listenRows(onRows, onErr) {
   if (!_initOk || isBlockedProductionProject || !isExpectedProject) return () => {};
   if (role() === 'administrativo' && clinicId(profile().clinica)) {
     let ownRows = [];
-    let programmedRows = [];
+    const programmedRowsByBatch = new Map();
     const emit = () => {
       const unique = new Map();
+      const programmedRows = [...programmedRowsByBatch.values()].flat();
       [...ownRows, ...programmedRows].forEach(row => unique.set(String(row.id), row));
       onRows([...unique.values()]);
     };
@@ -201,21 +207,32 @@ function listenRows(onRows, onErr) {
       snap => { ownRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
       handleError
     );
-    let unsubProgrammed = () => {};
+    let unsubProgrammed = [];
     let refreshTimer = null;
     const subscribeProgrammed = () => {
-      unsubProgrammed();
-      unsubProgrammed = onSnapshot(
-        programmedCirugiasRef(),
-        { includeMetadataChanges: false },
-        snap => { programmedRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
-        handleError
-      );
+      unsubProgrammed.forEach(unsubscribe => unsubscribe());
+      unsubProgrammed = [];
+      programmedRowsByBatch.clear();
+      programmedCirugiasRefs().forEach((programmedRef, batchIndex) => {
+        unsubProgrammed.push(onSnapshot(
+          programmedRef,
+          { includeMetadataChanges: false },
+          snap => {
+            programmedRowsByBatch.set(batchIndex, snap.docs.map(d => normRow(d.data(), d.id)));
+            emit();
+          },
+          handleError
+        ));
+      });
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(subscribeProgrammed, millisecondsUntilNextArgentinaDay());
     };
     subscribeProgrammed();
-    return () => { unsubOwn(); unsubProgrammed(); clearTimeout(refreshTimer); };
+    return () => {
+      unsubOwn();
+      unsubProgrammed.forEach(unsubscribe => unsubscribe());
+      clearTimeout(refreshTimer);
+    };
   }
   return onSnapshot(
     ownClinicCirugiasRef(),
@@ -228,12 +245,13 @@ function listenRows(onRows, onErr) {
 async function exportAllRows() {
   if (!_initOk || isBlockedProductionProject || !isExpectedProject) throw new Error('Firestore DEMO no inicializado');
   if (role() === 'administrativo' && clinicId(profile().clinica)) {
-    const [ownSnap, programmedSnap] = await Promise.all([
+    const [ownSnap, ...programmedSnaps] = await Promise.all([
       getDocs(ownClinicCirugiasRef()),
-      getDocs(programmedCirugiasRef())
+      ...programmedCirugiasRefs().map(programmedRef => getDocs(programmedRef))
     ]);
     const unique = new Map();
-    [...ownSnap.docs, ...programmedSnap.docs].forEach(d => unique.set(d.id, normRow(d.data(), d.id)));
+    [ownSnap, ...programmedSnaps].flatMap(snap => snap.docs)
+      .forEach(d => unique.set(d.id, normRow(d.data(), d.id)));
     return [...unique.values()];
   }
   const snap = await getDocs(ownClinicCirugiasRef());
