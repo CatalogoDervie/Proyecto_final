@@ -11,6 +11,12 @@ import {
   deleteDoc, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 import { CLIENT_CONFIG } from './cliente-config.js';
+import {
+  PROGRAMMED_UNTIL_FIELD,
+  argentinaDayKey,
+  millisecondsUntilNextArgentinaDay,
+  programadaHastaDia
+} from './workflow-programada.js';
 
 const firebaseConfig = CLIENT_CONFIG.firebase;
 const EXPECTED_PROJECT_ID = 'proyecto-final-tig';
@@ -39,7 +45,7 @@ function ownClinicCirugiasRef() {
   return role() === 'administrativo' && c ? query(cirugiasRef, where('clinica', '==', c)) : cirugiasRef;
 }
 function programmedCirugiasRef() {
-  return query(cirugiasRef, where('estadoCir', '==', 'Programada'));
+  return query(cirugiasRef, where(PROGRAMMED_UNTIL_FIELD, '>', argentinaDayKey()));
 }
 function queueLoad() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } }
 function queueSave(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch(e) { console.warn('[PFC Queue] no se pudo persistir:', e.message); } }
@@ -101,6 +107,7 @@ function sanitize(row) {
   out.clinica = assigned;
   const now = new Date().toISOString();
   out.id = String(out.id || '');
+  out[PROGRAMMED_UNTIL_FIELD] = programadaHastaDia(out);
   if (!out.createdAt) out.createdAt = now;
   out.updatedAt = now;
   for (const k of Object.keys(out)) { if (out[k] === undefined) out[k] = null; }
@@ -194,13 +201,21 @@ function listenRows(onRows, onErr) {
       snap => { ownRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
       handleError
     );
-    const unsubProgrammed = onSnapshot(
-      programmedCirugiasRef(),
-      { includeMetadataChanges: false },
-      snap => { programmedRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
-      handleError
-    );
-    return () => { unsubOwn(); unsubProgrammed(); };
+    let unsubProgrammed = () => {};
+    let refreshTimer = null;
+    const subscribeProgrammed = () => {
+      unsubProgrammed();
+      unsubProgrammed = onSnapshot(
+        programmedCirugiasRef(),
+        { includeMetadataChanges: false },
+        snap => { programmedRows = snap.docs.map(d => normRow(d.data(), d.id)); emit(); },
+        handleError
+      );
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(subscribeProgrammed, millisecondsUntilNextArgentinaDay());
+    };
+    subscribeProgrammed();
+    return () => { unsubOwn(); unsubProgrammed(); clearTimeout(refreshTimer); };
   }
   return onSnapshot(
     ownClinicCirugiasRef(),
