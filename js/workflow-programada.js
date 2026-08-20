@@ -4,6 +4,8 @@
 
 export const PROGRAMMED_UNTIL_FIELD = 'programadaHastaDia';
 export const PROGRAMMED_TIME_ZONE = 'America/Argentina/Cordoba';
+export const PROGRAMMED_QUERY_HORIZON_DAYS = 366;
+export const PROGRAMMED_QUERY_BATCH_SIZE = 30;
 
 function text(value) { return String(value ?? '').trim(); }
 function upper(value) {
@@ -28,6 +30,29 @@ export function argentinaDateISO(now = new Date()) {
 
 export function argentinaDayKey(now = new Date()) {
   return Number(argentinaDateISO(now).replaceAll('-', ''));
+}
+
+export function futureProgrammedDayKeys(
+  now = new Date(),
+  horizonDays = PROGRAMMED_QUERY_HORIZON_DAYS
+) {
+  const days = Math.max(1, Math.trunc(Number(horizonDays) || 0));
+  const [year, month, day] = argentinaDateISO(now).split('-').map(Number);
+  return Array.from({ length: days }, (_, index) => Number(
+    new Date(Date.UTC(year, month - 1, day + index + 1, 12))
+      .toISOString()
+      .slice(0, 10)
+      .replaceAll('-', '')
+  ));
+}
+
+export function programmedQueryDayBatches(now = new Date()) {
+  const keys = futureProgrammedDayKeys(now);
+  const batches = [];
+  for (let index = 0; index < keys.length; index += PROGRAMMED_QUERY_BATCH_SIZE) {
+    batches.push(keys.slice(index, index + PROGRAMMED_QUERY_BATCH_SIZE));
+  }
+  return batches;
 }
 
 export function isFechaProgramadaWorkflow(row, referenceDate = argentinaDateISO()) {
