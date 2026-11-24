@@ -219,6 +219,13 @@ export function toggleAlerts() {
 export function renderAlerts() {
   const showSilenced = !!document.getElementById('showSilenced')?.checked;
   const withAlerts = DB.rows.map(p => ({ p, alerts: alertas(p, { includeSilenced: true }) })).filter(x => x.alerts.length > 0);
+  const criticalCount = withAlerts.filter(({ p, alerts }) =>
+    (!isAdministrativo() || canViewClinic(p.clinica)) && alerts.some(a => a.severity === 'red')
+  ).length;
+  const criticalEl = document.getElementById('alertsCriticalCount');
+  if (criticalEl) criticalEl.textContent = String(criticalCount);
+  const criticalButton = document.getElementById('alertsToggle');
+  if (criticalButton) criticalButton.title = 'Episodios con alertas rojas del ámbito de tu cuenta, incluidas las silenciadas.';
   let flat = withAlerts.flatMap(x =>
     x.alerts.filter(a => showSilenced || !isSilenced(a)).map(a => ({ p: x.p, a }))
   );
@@ -674,3 +681,4 @@ export function updateStickyMetrics() {
   const headerH = h ? Math.ceil(h.getBoundingClientRect().height) : 120;
   document.body.style.setProperty('--header-h', `${headerH}px`);
 }
+
