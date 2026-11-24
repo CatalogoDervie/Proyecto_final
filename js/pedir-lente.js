@@ -38,7 +38,7 @@ function ensureLentessModal() {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(15,23,42,.25);width:min(1080px,96vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #e2e8f0">
-        <div><div style="font-weight:800;color:#0f172a">Ejecutar Lentess con filtros actuales</div><div id="lentessModuloSub" style="font-size:12px;color:#64748b;margin-top:2px"></div></div>
+        <div><div style="font-weight:800;color:#0f172a">Solicitar lentes con filtros actuales</div><div id="lentessModuloSub" style="font-size:12px;color:#64748b;margin-top:2px"></div></div>
         <button id="lentessModuloClose" class="btn">Cerrar</button>
       </div>
       <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end">
@@ -129,7 +129,7 @@ export function renderPedirLente() {
     { key: 'ALL', label: 'Ver todo', n: all.length },
   ];
   view.innerHTML = `
-    <div class="module-shell"><div class="module-topline"><div><div class="module-title">Circuito de lentes</div><div class="module-subtitle">Incluye 3 etapas: pedir, esperando y llegó lente para programar. Usa búsqueda/clínica/obra social globales, pero maneja su filtro interno sin heredar la cola rápida de operación.</div></div><button class="btn primary" id="btnAbrirLentessModulo">🧿 Ejecutar Lentess con filtros actuales</button></div>
+    <div class="module-shell"><div class="module-topline"><div><div class="module-title">Circuito de lentes</div><div class="module-subtitle">Incluye 3 etapas: pedir, esperando y llegó lente para programar. Usa búsqueda/clínica/obra social globales, pero maneja su filtro interno sin heredar la cola rápida de operación.</div></div><button class="btn primary" id="btnAbrirLentessModulo">🧿 Solicitar lentes con filtros actuales</button></div>
       <div class="stats-mini-grid"><div class="stats-mini-card"><div class="stats-mini-label">Pedir lente</div><div class="stats-mini-value">${counts[WORKFLOW_KEYS.PEDIR_LENTE]}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Esperando lente</div><div class="stats-mini-value">${counts[WORKFLOW_KEYS.ESPERANDO_LENTE]}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Llegó lente - programar</div><div class="stats-mini-value">${counts[WORKFLOW_KEYS.LLEGO_LENTE_PROGRAMAR]}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Total módulo</div><div class="stats-mini-value">${all.length}</div></div></div>
       <div class="module-chip-row">${filterButtons.map(item => `<button class="stats-screen-btn ${screen === item.key ? 'active' : ''}" data-pl-filter="${escapeAttr(item.key)}">${escapeHtml(item.label)} <span class="stats-chip-count">${item.n}</span></button>`).join('')}</div>
       <div class="tablewrap compact-module-table"><div class="table-scroll"><table class="module-table"><thead><tr><th>#</th><th>Paciente</th><th>Clínica</th><th>Ojo</th><th>Dioptría</th><th>Obra social</th><th>Fecha pedido</th><th>Fecha llegó</th><th>Estado</th></tr></thead><tbody>${rows.length ? rows.map((p, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(p.nombre || '—')}<div class="cell-sub">DNI ${escapeHtml(p.dni || '—')} · Afiliado ${escapeHtml(p.afiliado || '—')}</div></td><td>${escapeHtml(p.clinica || '—')}</td><td>${escapeHtml(p.ojo || '—')}</td><td>${escapeHtml(getDioptria(p) || '—')}</td><td>${escapeHtml(p.obraSocial || '—')}</td><td>${escapeHtml(p.fechaSolLente || '—')}</td><td>${escapeHtml(p.fechaLlegaLente || '—')}</td><td><span class="badge ${badgeFor(stateKey(p))}">${escapeHtml(estado(p))}</span></td></tr>`).join('') : `<tr><td colspan="9"><div class="empty">No hay pacientes en esta etapa con los filtros globales actuales.</div></td></tr>`}</tbody></table></div></div>
@@ -137,3 +137,4 @@ export function renderPedirLente() {
   view.querySelectorAll('[data-pl-filter]').forEach(btn => btn.addEventListener('click', () => { setModuleFilter(btn.dataset.plFilter || WORKFLOW_KEYS.PEDIR_LENTE); renderPedirLente(); }));
   document.getElementById('btnAbrirLentessModulo')?.addEventListener('click', () => openLentessModulo(rows, screen));
 }
+
