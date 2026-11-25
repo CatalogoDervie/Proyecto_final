@@ -19,11 +19,15 @@ function validISODate(value) {
   return date.toISOString().slice(0, 10) === raw ? raw : '';
 }
 
+// El formateador es inmutable; reutilizarlo evita construir uno por episodio.
+// La fecha se sigue calculando en cada llamada, incluso al cambiar de día.
+const argentinaDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: PROGRAMMED_TIME_ZONE,
+  year: 'numeric', month: '2-digit', day: '2-digit'
+});
+
 export function argentinaDateISO(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: PROGRAMMED_TIME_ZONE,
-    year: 'numeric', month: '2-digit', day: '2-digit'
-  }).formatToParts(now);
+  const parts = argentinaDateFormatter.formatToParts(now);
   const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
 }

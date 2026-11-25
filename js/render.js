@@ -4,7 +4,7 @@
 
 import { escapeHtml, escapeAttr, jsq, fd, fdInput, toast } from './utils.js';
 import {
-  DB, selId, setSelId, sortCol, sortDir, setSortCol, setSortDir,
+  DB, selId, setSelId, sortCol, sortDir, setSortCol, setSortDir, withComputedRows,
   currentTab, quickFilter, quickFilterLabel, SETTINGS, ALERT_SILENCES,
   estado, stateKey, WORKFLOW_KEYS, alertas, proximaAccion, filtered, duplicateNewestIds,
   readDomFilterSnapshot,
@@ -30,6 +30,10 @@ export const MAIN_TABLE_COLUMNS = [
 
 // ── Render principal ──────────────────────────────────────────────────────
 export function render() {
+  return withComputedRows(renderCurrentView);
+}
+
+function renderCurrentView() {
   refreshAdmisionFilterOptions();
   refreshEstadoFilterOptions();
   renderStats();
@@ -315,6 +319,10 @@ function facBadgeCls(fac) {
 }
 
 export function renderTabla() {
+  return withComputedRows(renderTablaContent);
+}
+
+function renderTablaContent() {
   renderMainTableHeader();
   const sharedProgrammed = isAdministrativo() && quickFilter === WORKFLOW_KEYS.FECHA_PROGRAMADA;
   const rows = filtered();
@@ -617,12 +625,12 @@ export function refreshSidePanel(p) {
 
 // ── Estadísticas (lazy) ───────────────────────────────────────────────────
 export function renderEstadisticasLazy() {
-  import('./estadisticas.js').then(m => m.renderEstadisticas()).catch(e => console.error('[stats]', e));
+  import('./estadisticas.js').then(m => withComputedRows(() => m.renderEstadisticas())).catch(e => console.error('[stats]', e));
 }
 
 
 export function renderFacturarLazy() {
-  import('./facturar.js').then(m => m.renderFacturar()).catch(e => {
+  import('./facturar.js').then(m => withComputedRows(() => m.renderFacturar())).catch(e => {
     console.error('[facturar]', e);
     const el = document.getElementById('facturarView');
     if (el) el.innerHTML = '<div class="empty">No se pudo cargar la vista Facturar</div>';
@@ -630,7 +638,7 @@ export function renderFacturarLazy() {
 }
 
 export function renderPedirLenteLazy() {
-  import('./pedir-lente.js').then(m => m.renderPedirLente()).catch(e => {
+  import('./pedir-lente.js').then(m => withComputedRows(() => m.renderPedirLente())).catch(e => {
     console.error('[pedir-lente]', e);
     const el = document.getElementById('pedirLenteView');
     if (el) el.innerHTML = '<div class="empty">No se pudo cargar el módulo Pedir lente</div>';
@@ -639,7 +647,7 @@ export function renderPedirLenteLazy() {
 
 // ── WhatsApp tab (stub que carga el módulo pesado) ─────────────────────────
 export function renderWhatsAppTab() {
-  import('./whatsapp.js').then(m => m.renderWhatsApp()).catch(e => {
+  import('./whatsapp.js').then(m => withComputedRows(() => m.renderWhatsApp())).catch(e => {
     const el = document.getElementById('waView');
     if (el) el.innerHTML = '<div class="empty">Módulo WhatsApp no disponible</div>';
   });

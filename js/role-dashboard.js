@@ -1,6 +1,6 @@
 'use strict';
 
-import { DB, SETTINGS, WORKFLOW_KEYS, stateKey, alertas, getFechaFacturadaBase, applyAlertSettings } from './state.js';
+import { DB, SETTINGS, WORKFLOW_KEYS, stateKey, alertas, getFechaFacturadaBase, applyAlertSettings, withComputedRows } from './state.js';
 import { currentRole, currentClinic, clinicLabel, canConfigureOperationalAlerts, isMedico } from './authz.js';
 import { escapeHtml, escapeAttr, toast } from './utils.js';
 import { doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
@@ -237,9 +237,10 @@ export async function renderRoleDashboard() {
   const container=document.getElementById('roleDashboardView');
   if(!container||rendering)return;
   rendering=true;
-  ensureFilters();
-  await loadConfig();
-  container.innerHTML=`<main class="role-dashboard ${isMedico()?'medico':'supervisor'}">${isMedico()?renderMedico():renderSupervisor()}</main>`;
-  bind(container);
-  rendering=false;
+  try {
+    ensureFilters();
+    await loadConfig();
+    container.innerHTML=withComputedRows(() => `<main class="role-dashboard ${isMedico()?'medico':'supervisor'}">${isMedico()?renderMedico():renderSupervisor()}</main>`);
+    bind(container);
+  } finally { rendering=false; }
 }

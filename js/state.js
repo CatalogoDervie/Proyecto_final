@@ -36,6 +36,31 @@ export function setAppsScriptUrl(url) {
   localStorage.setItem('apps_script_url', url);
 }
 
+// Contexto exclusivo de un cálculo síncrono de la interfaz. Se descarta al
+// terminar, por lo que ninguna edición, sincronización o cambio de usuario
+// puede reutilizar resultados de una renderización anterior.
+let computedRows = null;
+export function withComputedRows(calculate) {
+  if (computedRows) return calculate();
+  const eyes = new Map();
+  for (const row of DB.rows) {
+    const dni = String(row.dni || '').trim();
+    const eye = String(row.ojo || '').trim().toUpperCase();
+    if (!eyes.has(dni)) eyes.set(dni, new Map());
+    const byEye = eyes.get(dni);
+    if (!byEye.has(eye)) byEye.set(eye, []);
+    byEye.get(eye).push(row);
+  }
+  for (const byEye of eyes.values()) {
+    for (const candidates of byEye.values()) {
+      candidates.sort((a, b) => String(b.updatedAt || b.createdAt || b.id || '').localeCompare(String(a.updatedAt || a.createdAt || a.id || '')));
+    }
+  }
+  computedRows = { eyes, date: argentinaDateISO(), states: new WeakMap(), alerts: new WeakMap() };
+  try { return calculate(); }
+  finally { computedRows = null; }
+}
+
 // ── Configuración de alertas ──────────────────────────────────────────────
 export let SETTINGS = Object.assign({
   second_eye_missing_warn_days: 30,
@@ -291,6 +316,9 @@ export function getOtherEyeRow(p) {
   const dni = String(p.dni || '').trim();
   if (!dni) return null;
   const otro = p.ojo === 'OD' ? 'OI' : 'OD';
+  if (computedRows) {
+    return computedRows.eyes.get(dni)?.get(otro)?.find(x => x.id !== p.id) || null;
+  }
   const candidates = DB.rows.filter(x => x.id !== p.id && String(x.dni || '').trim() === dni && String(x.ojo || '').trim().toUpperCase() === otro);
   if (!candidates.length) return null;
   return candidates.sort((a, b) => String(b.updatedAt || b.createdAt || b.id || '').localeCompare(String(a.updatedAt || a.createdAt || a.id || '')))[0] || null;
@@ -333,7 +361,15 @@ export function getFechaFacturadaBase(p) {
 }
 
 // ── Estado calculado del paciente ─────────────────────────────────────────
-export function stateKey(p, referenceDate = argentinaDateISO()) {
+export function stateKey(p, referenceDate = computedRows?.date || argentinaDateISO()) {
+  const cache = computedRows && referenceDate === computedRows.date ? computedRows.states : null;
+  if (cache?.has(p)) return cache.get(p);
+  const key = calculateStateKey(p, referenceDate);
+  cache?.set(p, key);
+  return key;
+}
+
+function calculateStateKey(p, referenceDate) {
   const estCir = getEstadoCirCalculado(p, referenceDate);
   const tieneSol = hasValidDate(p.fechaSolLente);
   const tieneLlego = hasValidDate(p.fechaLlegaLente);
@@ -422,9 +458,19 @@ export function episodeIdFor(p) {
 
 // ── Cálculo de alertas de un paciente ────────────────────────────────────
 export function alertas(p, opts = {}) {
+  const cache = computedRows?.alerts;
+  let res = cache?.get(p);
+  if (!res) {
+    res = calculateAlerts(p);
+    cache?.set(p, res);
+  }
+  if (opts.raw || opts.includeSilenced) return res;
+  return res.filter(a => !isSilenced(a));
+}
+
+function calculateAlerts(p) {
   const today = toDateOnly(hoyISO());
   const res = [];
-  const includeSilenced = !!opts.includeSilenced;
   const stKey = stateKey(p);
   const dni = String(p.dni || '').trim();
   const ojo = String(p.ojo || '').toUpperCase() || 'NA';
@@ -453,8 +499,7 @@ export function alertas(p, opts = {}) {
     push('second_surgery_missing', d, `FACTURADA Y FALTA ${otroTxt} (+${d} días)`, SETTINGS.second_eye_missing_warn_days, SETTINGS.second_eye_missing_crit_days, base);
   }
 
-  if (opts.raw) return res;
-  return includeSilenced ? res : res.filter(a => !isSilenced(a));
+  return res;
 }
 
 export function readDomFilterSnapshot() {
