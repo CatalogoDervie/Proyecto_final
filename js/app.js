@@ -430,6 +430,10 @@ async function importarBackupJSON() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json';
+  input.hidden = true;
+  input.id = 'backupJsonInput';
+  document.body.appendChild(input);
+  input.addEventListener('cancel', () => input.remove(), { once: true });
   input.onchange = async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -455,6 +459,8 @@ async function importarBackupJSON() {
     } catch (err) {
       console.error(err);
       toast('⚠ Error al importar JSON: ' + err.message);
+    } finally {
+      input.remove();
     }
   };
   input.click();
