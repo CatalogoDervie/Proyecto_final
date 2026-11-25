@@ -125,7 +125,9 @@ function monthlyBillingPlan(fechaDemo, seed) {
 }
 function billedDescriptor(month, index, globalIndex) {
   const maxDay = Math.max(4, month.availableDays);
-  const invoiceDay = 4 + ((index * 7 + month.month * 5 + globalIndex) % Math.max(1, maxDay - 3));
+  const invoiceDay = month.current && index === month.target - 1
+    ? month.availableDays
+    : 4 + ((index * 7 + month.month * 5 + globalIndex) % Math.max(1, maxDay - 3));
   const fechaFacturada = `${month.year}-${pad(month.month)}-${pad(Math.min(invoiceDay, month.availableDays))}`;
   const fechaCir = addDays(fechaFacturada, -(1 + globalIndex % 3));
   const fechaLlegaLente = addDays(fechaCir, -(6 + globalIndex % 6));
@@ -254,7 +256,9 @@ function assignPeople(args, pools, rnd) {
       const sequence = episodes.length + 1;
       const special = sequence % 12 === 0 || sequence % 29 === 0;
       const baseDate = descriptor.fechaSolLente || descriptor.fechaCir || addDays(args.fechaDemo, -(sequence % 45));
-      const fechaCarga = clampDate(addDays(baseDate, -(2 + sequence % 5)), '2026-01-01', args.fechaDemo);
+      const fechaCarga = descriptor.kind === 'pedir'
+        ? addDays(args.fechaDemo, -(sequence % 4))
+        : clampDate(addDays(baseDate, -(2 + sequence % 5)), '2026-01-01', args.fechaDemo);
       episodes.push({
         id: `EPI-${person.personaId}-${eye}`, personaId: person.personaId, clinica: clinic,
         nombre: person.nombre, dni: person.dni, fnac: person.fnac, tel: person.tel, dir: person.dir,
