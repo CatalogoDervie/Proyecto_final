@@ -436,6 +436,11 @@ async function importarBackupJSON() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
+      if (data.metadata?.projectId === 'proyecto-final-tig' && Array.isArray(data.episodes)) {
+        const { importarDatasetDemo } = await import('./importar-demo.js');
+        await importarDatasetDemo(data);
+        return;
+      }
       const rows = Array.isArray(data) ? data : (data.rows || []);
       if (!rows.length) { toast('⚠ El archivo no tiene filas válidas'); return; }
       if (!confirm(`¿Importar ${rows.length} pacientes?\n\nSe AGREGARÁN a los existentes.`)) return;
@@ -1210,3 +1215,4 @@ if (window.CURRENT_USER && !window.__appStarted) {
 }
 window.addEventListener('side:opened', e => initSideDraft(e.detail.id));
   window.addEventListener('side:closed', () => { sideDraft = null; markSideDirty(false); });
+

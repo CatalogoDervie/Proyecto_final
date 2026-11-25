@@ -31,11 +31,13 @@ const REQUIRED_FIELDS = [
 ];
 
 function parseArgs(argv) {
-  const args = { fechaDemo: '2026-08-17', seed: 20260817, output: DEFAULT_OUTPUT, report: DEFAULT_REPORT };
+  const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const args = { fechaDemo: today, seed: 20260817, perfil: 'estandar', output: DEFAULT_OUTPUT, report: DEFAULT_REPORT };
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
     const val = argv[i + 1];
     if (key === '--fecha-demo') args.fechaDemo = val, i += 1;
+    else if (key === '--perfil') args.perfil = val, i += 1;
     else if (key === '--seed') args.seed = Number(val), i += 1;
     else if (key === '--output') args.output = path.resolve(val), i += 1;
     else if (key === '--report') args.report = path.resolve(val), i += 1;
@@ -147,17 +149,18 @@ function bandForIndex(index, total, weights) {
   const normal = Math.max(0, total - red - yellow);
   return index < normal ? 'normal' : index < normal + yellow ? 'yellow' : 'red';
 }
-function activeDescriptors(fechaDemo, targets) {
+function activeDescriptors(fechaDemo, targets, perfil = 'estandar') {
+  const defensa = perfil === 'defensa';
   const rows = [];
   for (let i = 0; i < targets.pedir; i += 1) rows.push({ kind: 'pedir', fechaSolLente: '', fechaLlegaLente: '', recepLente: '', fechaCir: '', hora: '', estadoCir: '', estadoFac: '', fechaFacturada: '', stageDemo: 'pendiente_pedir_lente' });
   for (let i = 0; i < targets.esperando; i += 1) {
-    const band = bandForIndex(i, targets.esperando, { normal: 9, yellow: 6, red: 2 });
-    const age = band === 'normal' ? 2 + i % 7 : band === 'yellow' ? 11 + i % 8 : 23 + i % 8;
+    const band = defensa ? (i === 0 ? 'red' : i === 1 ? 'yellow' : 'normal') : bandForIndex(i, targets.esperando, { normal: 9, yellow: 6, red: 2 });
+    const age = defensa ? (band === 'normal' ? 1 + i % 3 : band === 'yellow' ? 12 : 25) : (band === 'normal' ? 2 + i % 7 : band === 'yellow' ? 11 + i % 8 : 23 + i % 8);
     rows.push({ kind: 'esperando', fechaSolLente: addDays(fechaDemo, -age), fechaLlegaLente: '', recepLente: '', fechaCir: '', hora: '', estadoCir: '', estadoFac: '', fechaFacturada: '', stageDemo: `esperando_${band}` });
   }
   for (let i = 0; i < targets.llego; i += 1) {
-    const band = bandForIndex(i, targets.llego, { normal: 6, yellow: 4, red: 2 });
-    const age = band === 'normal' ? 3 + i % 9 : band === 'yellow' ? 17 + i % 10 : 33 + i % 8;
+    const band = defensa ? (i === 0 ? 'yellow' : 'normal') : bandForIndex(i, targets.llego, { normal: 6, yellow: 4, red: 2 });
+    const age = defensa ? (band === 'normal' ? 3 + i % 4 : 18) : (band === 'normal' ? 3 + i % 9 : band === 'yellow' ? 17 + i % 10 : 33 + i % 8);
     const fechaLlegaLente = addDays(fechaDemo, -age);
     rows.push({ kind: 'llego', fechaSolLente: addDays(fechaLlegaLente, -(11 + i % 7)), fechaLlegaLente, recepLente: 'Correcta', fechaCir: '', hora: '', estadoCir: '', estadoFac: '', fechaFacturada: '', stageDemo: `lente_recibida_${band}` });
   }
@@ -167,8 +170,8 @@ function activeDescriptors(fechaDemo, targets) {
     rows.push({ kind: 'programada', fechaSolLente: addDays(fechaLlegaLente, -(12 + i % 8)), fechaLlegaLente, recepLente: 'Correcta', fechaCir, hora: `${pad(8 + i % 7)}:${i % 2 ? '30' : '00'}`, estadoCir: '', estadoFac: '', fechaFacturada: '', stageDemo: 'cirugia_programada' });
   }
   for (let i = 0; i < targets.realizada; i += 1) {
-    const band = bandForIndex(i, targets.realizada, { normal: 5, yellow: 3, red: 2 });
-    const age = band === 'normal' ? 3 + i % 8 : band === 'yellow' ? 17 + i % 10 : 34 + i % 8;
+    const band = defensa ? (i === 0 ? 'yellow' : 'normal') : bandForIndex(i, targets.realizada, { normal: 5, yellow: 3, red: 2 });
+    const age = defensa ? (band === 'normal' ? 3 + i % 4 : 18) : (band === 'normal' ? 3 + i % 8 : band === 'yellow' ? 17 + i % 10 : 34 + i % 8);
     const fechaCir = addDays(fechaDemo, -age);
     const fechaLlegaLente = addDays(fechaCir, -(6 + i % 6));
     rows.push({ kind: 'realizada', fechaSolLente: addDays(fechaLlegaLente, -(11 + i % 8)), fechaLlegaLente, recepLente: 'Correcta', fechaCir, hora: `${pad(8 + i % 7)}:${i % 2 ? '30' : '00'}`, estadoCir: 'Realizada', estadoFac: '', fechaFacturada: '', stageDemo: `realizada_${band}_sin_facturar` });
@@ -193,7 +196,7 @@ function descriptorPools(args) {
   for (const month of plan) for (let i = 0; i < month.target; i += 1) billed.push(billedDescriptor(month, i, ++globalIndex));
   billed.sort((a, b) => a.fechaFacturada.localeCompare(b.fechaFacturada));
   const activeTargets = activeTargetsForBilled(billed.length);
-  return { plan, billed, activeTargets, active: activeDescriptors(args.fechaDemo, activeTargets) };
+  return { plan, billed, activeTargets, active: activeDescriptors(args.fechaDemo, activeTargets, args.perfil) };
 }
 
 function assignPeople(args, pools, rnd) {
@@ -235,8 +238,8 @@ function assignPeople(args, pools, rnd) {
       group.type = `primer_ojo_facturado_falta_segundo_${severity}`;
     });
   };
-  takeByMonth(monthKey(addDays(args.fechaDemo, -35)), 12, 'yellow');
-  takeByMonth(monthKey(addDays(args.fechaDemo, -55)), 4, 'red');
+  takeByMonth(monthKey(addDays(args.fechaDemo, -35)), args.perfil === 'defensa' ? 1 : 12, 'yellow');
+  takeByMonth(monthKey(addDays(args.fechaDemo, -55)), args.perfil === 'defensa' ? 0 : 4, 'red');
   takeByMonth(monthKey(addDays(args.fechaDemo, -10)), 6, 'normal');
 
   const episodes = [];
@@ -318,7 +321,7 @@ function summarize(episodes, groups, plan, args, validation) {
   const mixedDays = [...surgeryClinics.entries()].filter(([, set]) => set.size === 2).map(([date]) => date).sort();
   const totalAlerts = (alerts.yellow || 0) + (alerts.red || 0);
   return {
-    projectId: EXPECTED_PROJECT_ID, fecha_demo: args.fechaDemo, seed: args.seed,
+    projectId: EXPECTED_PROJECT_ID, fecha_demo: args.fechaDemo, seed: args.seed, perfil: args.perfil,
     personas: groups.length, episodios: episodes.length,
     personasDosEpisodios: groups.filter(group => group.descriptors.length === 2).length,
     personasUnEpisodio: groups.filter(group => group.descriptors.length === 1).length,
@@ -384,6 +387,7 @@ function validateDataset(episodes, groups, plan, args) {
 
 function generate(args) {
   parseISO(args.fechaDemo);
+  assert(['estandar','defensa'].includes(args.perfil), 'perfil inválido');
   assert(args.fechaDemo >= '2026-03-01', 'fecha_demo demasiado temprana');
   const rnd = mulberry32(args.seed);
   const pools = descriptorPools(args);
@@ -391,12 +395,20 @@ function generate(args) {
   const validation = validateDataset(episodes, groups, pools.plan, args);
   const summary = summarize(episodes, groups, pools.plan, args, validation);
   assert(summary.porcentajeFacturados >= 85 && summary.porcentajeFacturados <= 92, `facturados ${summary.porcentajeFacturados}%`);
+  if (args.perfil === 'defensa') {
+    assert(summary.totalAlertas === 5 && summary.alertas.yellow === 4 && summary.alertas.red === 1, 'el perfil defensa requiere 4 alertas amarillas y 1 roja');
+    for (let day = 0; day <= 5; day += 1) {
+      const counts = countBy(episodes, row => alertSeverity(row, episodes, addDays(args.fechaDemo, day)) || 'sin_alerta');
+      assert(counts.yellow === 4 && counts.red === 1, `las alertas cambian antes de cinco días: día ${day}`);
+    }
+  } else {
   assert(summary.porcentajeConAlerta >= 4.5 && summary.porcentajeConAlerta <= 10, `alertas ${summary.porcentajeConAlerta}%`);
   assert((summary.alertas.yellow || 0) > (summary.alertas.red || 0), 'debe haber más amarillas que rojas');
   assert((summary.alertas.yellow || 0) / summary.episodios >= 0.03 && (summary.alertas.yellow || 0) / summary.episodios <= 0.09, 'amarillas fuera de 3–9%');
   assert((summary.alertas.red || 0) / summary.episodios >= 0.01 && (summary.alertas.red || 0) / summary.episodios <= 0.04, 'rojas fuera de 1–4%');
   assert(summary.alertasFaltaSegundoOjo.yellow === 12, 'debe haber exactamente 12 alertas amarillas por falta de segundo ojo');
   assert(summary.alertasFaltaSegundoOjo.red === 4, 'debe haber exactamente 4 alertas rojas por falta de segundo ojo');
+  }
   assert(summary.porcentajeClinicaA >= 52 && summary.porcentajeClinicaA <= 58, `Clínica A ${summary.porcentajeClinicaA}%`);
   const odShare = (summary.ojos.OD || 0) / summary.episodios;
   assert(odShare >= 0.47 && odShare <= 0.53 && summary.ojos.OD !== summary.ojos.OI, 'OD/OI inválido');
@@ -411,3 +423,4 @@ fs.mkdirSync(path.dirname(args.report), { recursive: true });
 fs.writeFileSync(args.output, `${JSON.stringify({ metadata: summary, episodes }, null, 2)}\n`, 'utf8');
 fs.writeFileSync(args.report, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify(summary, null, 2));
+

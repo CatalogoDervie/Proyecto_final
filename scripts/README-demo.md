@@ -2,6 +2,18 @@
 
 La base se genera desde cero y nunca reutiliza pacientes reales.
 
+## Actualización para la defensa
+
+```bash
+node scripts/generar-datos-demo.mjs --fecha-demo 2026-11-25 --perfil defensa
+```
+
+El perfil `defensa` genera exactamente cuatro alertas amarillas y una roja a partir de las fechas de los episodios. Conserva esa distribución durante cinco días con los umbrales predeterminados, sin ocultar ni silenciar alertas. Sin `--fecha-demo` se utiliza el día actual de Argentina.
+
+Al 25/11/2026 genera 854 episodios para 564 personas ficticias, con 756 facturados y 98 activos. La actividad histórica incluye enero a noviembre; noviembre se calcula hasta el día 25. Las fechas futuras corresponden únicamente a cirugías programadas.
+
+Desde Operación, Herramientas, Importar JSON, el superadministrador puede seleccionar `data/demo-cirugias.json`. La importación comprueba el proyecto, la cuenta, el carácter ficticio de cada registro y las cinco alertas con la lógica real de la aplicación. Descarga un respaldo, actualiza los registros existentes y agrega los nuevos sin eliminar documentos. Finalmente vuelve a leer y comprobar los datos desde Firestore. No modifica usuarios, permisos ni otras colecciones. La importación se detiene si el archivo omite algún identificador existente o encuentra información ajena al dataset sintético.
+
 ## Generar y validar
 
 ```bash
@@ -73,3 +85,4 @@ DEMO_PASSWORD='definir-en-la-terminal' node scripts/verificar-permisos-demo.mjs
 ```
 
 La prueba no crea documentos temporales. Los intentos de creación fuera de clínica deben ser rechazados por Firestore y luego se verifica que esos IDs no existan. Las escrituras permitidas sobre episodios existentes son idempotentes y conservan todos sus campos.
+
